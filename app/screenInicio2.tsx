@@ -5,37 +5,36 @@ import {
   View,
   TouchableOpacity,
   SafeAreaView,
-  StatusBar,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-interface Step1Props {
-  onNext?: (selectedObjective: string) => void;
+interface Step2Props {
+  onNext?: (selectedOption: string) => void;
+  onBack?: () => void;
 }
 
-export default function OnboardingStep1({ onNext }: Step1Props) {
+export default function OnboardingStep2({ onNext, onBack }: Step2Props) {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
   const options = [
-    { id: 'gastos', label: 'Controlar meus gastos', icon: 'wallet-outline' },
-    { id: 'economizar', label: 'Economizar dinheiro', icon: 'leaf-outline' },
-    { id: 'dividas', label: 'Sair das dívidas', icon: 'shield-checkmark-outline' },
-    { id: 'investir', label: 'Investir', icon: 'trending-up-outline' },
-    { id: 'orcamento', label: 'Organizar meu orçamento', icon: 'pie-chart-outline' },
+    { id: 'sim_anoto_tudo', label: 'Sim, anoto tudo', icon: 'checkmark-done-circle-outline' },
+    { id: 'as_vezes', label: 'Às vezes acompanho', icon: 'stats-chart-outline' },
+    { id: 'nao_acompanho', label: 'Não acompanho meus gastos', icon: 'close-circle-outline' },
   ];
 
   const handleContinue = () => {
-    if (selectedOption) {
-      console.log('Objetivo selecionado:', selectedOption);
-      if (onNext) {
-        onNext(selectedOption);
-      } else {
-        // Caso a tela seja usada diretamente, navegamos para a próxima etapa
-        router.push('/screenInicio2');
-      }
+    if (!selectedOption) return;
+
+    console.log('Status de acompanhamento:', selectedOption);
+
+    if (onNext) {
+      onNext(selectedOption);
+    } else {
+      router.push('/screenInicio3');
     }
   };
 
@@ -46,28 +45,34 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.navRow}>
-          <View style={styles.iconPlaceholder} />
+          <TouchableOpacity
+            onPress={() => (onBack ? onBack() : router.back())}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
 
           <Text style={styles.stepText}>
-            1 <Text style={styles.stepMuted}>DE</Text> 5
+            2 <Text style={styles.stepMuted}>DE</Text> 5
           </Text>
 
           <View style={styles.iconPlaceholder} />
         </View>
 
         <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: '20%' }]} />
+          <View style={[styles.progressBarFill, { width: '40%' }]} />
         </View>
       </View>
 
       {/* CONTENT */}
       <View style={styles.content}>
         <Text style={styles.questionText}>
-          Qual é o seu principal objetivo financeiro?
+          Você acompanha seus gastos atualmente?
         </Text>
 
         <Text style={styles.subtitleText}>
-          Isso nos ajudará a personalizar sua inteligência artificial.
+          Seja honesto. O sistema vai se adaptar ao seu nível atual de disciplina.
         </Text>
 
         <View style={styles.optionsContainer}>
@@ -79,17 +84,12 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
                 key={option.id}
                 style={[
                   styles.optionCard,
-                  isSelected && styles.optionCardSelected,
+                  isSelected && styles.optionCardSelected
                 ]}
                 onPress={() => setSelectedOption(option.id)}
                 activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.iconBox,
-                    isSelected && styles.iconBoxSelected,
-                  ]}
-                >
+                <View style={[styles.iconBox, isSelected && styles.iconBoxSelected]}>
                   <Ionicons
                     name={option.icon as any}
                     size={22}
@@ -100,7 +100,7 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
                 <Text
                   style={[
                     styles.optionLabel,
-                    isSelected && styles.optionLabelSelected,
+                    isSelected && styles.optionLabelSelected
                   ]}
                 >
                   {option.label}
@@ -109,7 +109,7 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
                 <View
                   style={[
                     styles.radio,
-                    isSelected && styles.radioSelected,
+                    isSelected && styles.radioSelected
                   ]}
                 >
                   {isSelected && <View style={styles.radioInner} />}
@@ -146,6 +146,7 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
           )}
         </TouchableOpacity>
       </View>
+
     </SafeAreaView>
   );
 }
@@ -153,55 +154,60 @@ export default function OnboardingStep1({ onNext }: Step1Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#000000'
   },
 
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 10,
+    paddingBottom: 10
   },
 
   navRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 24
+  },
+
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center'
   },
 
   iconPlaceholder: {
-    width: 24,
-    height: 24,
+    width: 40
   },
 
   stepText: {
     color: '#FFF',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 2
   },
 
   stepMuted: {
-    color: '#666',
+    color: '#666'
   },
 
   progressBarBg: {
     height: 4,
     backgroundColor: '#1A1A1A',
     borderRadius: 2,
-    overflow: 'hidden',
+    overflow: 'hidden'
   },
 
   progressBarFill: {
     height: '100%',
     backgroundColor: '#00E5FF',
-    borderRadius: 2,
+    borderRadius: 2
   },
 
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingTop: 30
   },
 
   questionText: {
@@ -209,7 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '900',
     lineHeight: 40,
-    letterSpacing: -1,
+    letterSpacing: -1
   },
 
   subtitleText: {
@@ -217,11 +223,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     marginBottom: 40,
-    lineHeight: 22,
+    lineHeight: 22
   },
 
   optionsContainer: {
-    gap: 14,
+    gap: 14
   },
 
   optionCard: {
@@ -231,12 +237,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1A1A1A',
     borderRadius: 20,
-    padding: 16,
+    padding: 16
   },
 
   optionCardSelected: {
     borderColor: '#00E5FF',
-    backgroundColor: '#00E5FF0A',
+    backgroundColor: '#00E5FF0A'
   },
 
   iconBox: {
@@ -246,23 +252,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#111',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 16
   },
 
   iconBoxSelected: {
-    backgroundColor: '#00E5FF15',
+    backgroundColor: '#00E5FF15'
   },
 
   optionLabel: {
     flex: 1,
     color: '#AAA',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600'
   },
 
   optionLabelSelected: {
     color: '#FFF',
-    fontWeight: '800',
+    fontWeight: '800'
   },
 
   radio: {
@@ -272,28 +278,28 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#333',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
 
   radioSelected: {
-    borderColor: '#00E5FF',
+    borderColor: '#00E5FF'
   },
 
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#00E5FF',
+    backgroundColor: '#00E5FF'
   },
 
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 40,
-    paddingTop: 20,
+    paddingTop: 20
   },
 
   nextButtonWrapper: {
-    width: '100%',
+    width: '100%'
   },
 
   nextButtonActive: {
@@ -302,14 +308,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     borderRadius: 100,
-    gap: 10,
+    gap: 10
   },
 
   nextButtonTextActive: {
     color: '#000',
     fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.5
   },
 
   nextButtonDisabled: {
@@ -320,13 +326,13 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     backgroundColor: '#111',
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: '#222'
   },
 
   nextButtonTextDisabled: {
     color: '#555',
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 1.5,
-  },
+    letterSpacing: 1.5
+  }
 });
