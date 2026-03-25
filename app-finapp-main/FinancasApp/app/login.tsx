@@ -1,0 +1,233 @@
+import React, { useState } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  TextInput, 
+  TouchableOpacity, 
+  SafeAreaView, 
+  KeyboardAvoidingView, 
+  Platform,
+  StatusBar
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// --- TEMA ---
+const theme = {
+  bg: '#121212',
+  surface: '#1E1E1E',
+  text: '#FFFFFF',
+  textMuted: '#A0A0A0',
+  primary: '#8A2BE2', // Roxo
+  border: '#333333',
+  danger: '#F44336',
+};
+
+export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+      
+      {/* Comportamento para o teclado não cobrir os inputs */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        
+        {/* --- HEADER / LOGO --- */}
+        <View style={styles.headerContainer}>
+          <View style={styles.logoCircle}>
+            <MaterialCommunityIcons name="finance" size={40} color={theme.text} />
+          </View>
+          <Text style={styles.title}>Bem-vindo de volta!</Text>
+          <Text style={styles.subtitle}>Faça login para gerenciar suas finanças</Text>
+        </View>
+
+        {/* --- FORMULÁRIO --- */}
+        <View style={styles.formContainer}>
+          
+          {/* Input de E-mail */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>E-mail</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="exemplo@email.com"
+                placeholderTextColor={theme.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          </View>
+
+          {/* Input de Senha */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Senha</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Sua senha secreta"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Ionicons 
+                  name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                  size={20} 
+                  color={theme.textMuted} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Esqueceu a senha */}
+          <TouchableOpacity style={styles.forgotPasswordButton}>
+            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+          </TouchableOpacity>
+
+          {/* Botão Entrar */}
+          <TouchableOpacity style={styles.loginButton} activeOpacity={0.8}>
+            <Text style={styles.loginButtonText}>Entrar</Text>
+          </TouchableOpacity>
+
+        </View>
+
+        {/* --- RODAPÉ / CADASTRAR --- */}
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
+          <TouchableOpacity>
+            <Text style={styles.registerText}>Cadastre-se</Text>
+          </TouchableOpacity>
+        </View>
+
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+// --- ESTILOS ---
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.bg,
+  },
+  keyboardView: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  // Header
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    // Sombra para dar um destaque na logo
+    elevation: 8,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: theme.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: theme.textMuted,
+    textAlign: 'center',
+  },
+  // Form
+  formContainer: {
+    width: '100%',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 12,
+    height: 56,
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    color: theme.text,
+    fontSize: 16,
+    height: '100%',
+  },
+  eyeIcon: {
+    padding: 8,
+  },
+  // Ações
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 32,
+  },
+  forgotPasswordText: {
+    color: theme.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loginButton: {
+    backgroundColor: theme.primary,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Footer
+  footerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  footerText: {
+    color: theme.textMuted,
+    fontSize: 15,
+  },
+  registerText: {
+    color: theme.primary,
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+});
