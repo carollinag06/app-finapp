@@ -1,33 +1,65 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// Cores do seu tema para manter o padrão
+const theme = {
+  bg: '#121212',
+  surface: '#1E1E1E',
+  primary: '#8A2BE2', // Roxo
+  textMuted: '#A0A0A0',
+  border: '#333333'
+};
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <Tabs
+    <Tabs 
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+        headerShown: false, // Esconde o cabeçalho feio padrão do topo
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+          height: 60, // Altura da barra
+          paddingBottom: 8, // Dá um respiro para os textos
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: theme.primary, // Cor do ícone selecionado
+        tabBarInactiveTintColor: theme.textMuted, // Cor do ícone inativo
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        }
+      }}
+    >
+      {/* PRIMEIRA ABA: Tela Inicial (Dashboard) */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Início',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={size} color={color} />
+          ),
         }}
       />
+
+      {/* SEGUNDA ABA: Transações */}
       <Tabs.Screen
-        name="explore"
+        name="transactions"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Transações',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="swap-horizontal" size={size} color={color} />
+          ),
+        }}
+      />
+      
+      {/* TERCEIRA ABA (Exemplo: Estatísticas) */}
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Estatísticas',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pie-chart" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
