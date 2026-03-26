@@ -2,14 +2,13 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { ComponentProps, useMemo, useState } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- IMPORTAMOS O NOSSO STORE ---
 import { useTransactionStore } from '../../store/transactionStore';
@@ -68,12 +67,20 @@ const theme = {
 
 const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: number, currentYear: number, onPrev: () => void, onNext: () => void }) => (
   <View style={styles.header}>
-    <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/login')}>
-      <Ionicons name="person-circle-outline" size={32} color={theme.text} />
+    <TouchableOpacity
+      style={styles.iconButton}
+      onPress={() => router.push('/login')}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="person-circle-outline" size={28} color={theme.text} />
     </TouchableOpacity>
 
     <View style={styles.monthSelectorContainer}>
-      <TouchableOpacity style={styles.monthArrow} onPress={onPrev}>
+      <TouchableOpacity
+        style={styles.monthArrow}
+        onPress={onPrev}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
       </TouchableOpacity>
 
@@ -81,13 +88,20 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: n
         <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.monthArrow} onPress={onNext}>
+      <TouchableOpacity
+        style={styles.monthArrow}
+        onPress={onNext}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
       </TouchableOpacity>
     </View>
 
-    <TouchableOpacity style={styles.iconButton}>
-      <Ionicons name="notifications-outline" size={28} color={theme.text} />
+    <TouchableOpacity
+      style={styles.iconButton}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="notifications-outline" size={26} color={theme.text} />
     </TouchableOpacity>
   </View>
 );
@@ -273,6 +287,7 @@ export default function Dashboard() {
   const [mostrarSaldo, setMostrarSaldo] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
 
@@ -345,8 +360,7 @@ export default function Dashboard() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Header
         currentMonth={currentMonth}
         currentYear={currentYear}
@@ -355,7 +369,7 @@ export default function Dashboard() {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <CardSaldo
@@ -383,7 +397,7 @@ export default function Dashboard() {
         <PlanejamentoMensal />
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -3,15 +3,14 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  SafeAreaView,
   SectionList,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- CORES DO TEMA E CATEGORIAS ---
@@ -66,23 +65,40 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
       <>
         <Text style={styles.headerTitle}>Transações</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="calendar-outline" size={24} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={onSearchToggle}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onSearchToggle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="search-outline" size={24} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="filter-outline" size={24} color={theme.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <MaterialCommunityIcons name="dots-vertical" size={26} color={theme.text} />
           </TouchableOpacity>
         </View>
       </>
     ) : (
       <View style={styles.searchContainer}>
-        <TouchableOpacity onPress={onSearchToggle} style={styles.backSearch}>
+        <TouchableOpacity
+          onPress={onSearchToggle}
+          style={styles.backSearch}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <TextInput
@@ -94,7 +110,10 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
           onChangeText={setSearchText}
         />
         {searchText !== '' && (
-          <TouchableOpacity onPress={() => setSearchText('')}>
+          <TouchableOpacity
+            onPress={() => setSearchText('')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="close-circle" size={20} color={theme.textMuted} />
           </TouchableOpacity>
         )}
@@ -215,6 +234,7 @@ export default function TransactionsScreen() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
@@ -285,9 +305,7 @@ export default function TransactionsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Header
         isSearching={isSearching}
         onSearchToggle={() => {
@@ -310,7 +328,7 @@ export default function TransactionsScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
 
         ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
@@ -328,7 +346,7 @@ export default function TransactionsScreen() {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

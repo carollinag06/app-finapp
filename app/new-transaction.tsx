@@ -5,15 +5,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Importamos a nossa "Caixa Global" (Store)
 import { useTransactionStore } from '../store/transactionStore';
@@ -49,6 +48,7 @@ const incomeCategories = [
 export default function NewTransactionScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
+  const insets = useSafeAreaInsets();
 
   // Estados do formulário
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
@@ -144,9 +144,7 @@ export default function NewTransactionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -335,7 +333,7 @@ export default function NewTransactionScreen() {
         </View>
 
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

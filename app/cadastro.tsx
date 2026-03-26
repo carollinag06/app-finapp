@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  KeyboardAvoidingView, 
-  Platform,
-  StatusBar,
-  ScrollView
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- TEMA ---
 const theme = {
@@ -28,19 +27,18 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-      
-      <KeyboardAvoidingView 
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
@@ -49,7 +47,7 @@ export default function RegisterScreen() {
             <TouchableOpacity style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={theme.text} />
             </TouchableOpacity>
-            
+
             <View style={styles.titleWrapper}>
               <Text style={styles.title}>Criar Conta</Text>
               <Text style={styles.subtitle}>Comece a organizar sua vida financeira agora mesmo.</Text>
@@ -58,7 +56,7 @@ export default function RegisterScreen() {
 
           {/* --- FORMULÁRIO --- */}
           <View style={styles.formContainer}>
-            
+
             {/* Input de Nome */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nome completo</Text>
@@ -106,10 +104,10 @@ export default function RegisterScreen() {
                   onChangeText={setPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Ionicons 
-                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={20} 
-                    color={theme.textMuted} 
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={theme.textMuted}
                   />
                 </TouchableOpacity>
               </View>
@@ -129,10 +127,10 @@ export default function RegisterScreen() {
                   onChangeText={setConfirmPassword}
                 />
                 <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                  <Ionicons 
-                    name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={20} 
-                    color={theme.textMuted} 
+                  <Ionicons
+                    name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={theme.textMuted}
                   />
                 </TouchableOpacity>
               </View>
@@ -152,12 +150,12 @@ export default function RegisterScreen() {
               <Text style={styles.loginText}>Entrar</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={{ height: 40 }} /> {/* Espaçamento extra no final do scroll */}
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

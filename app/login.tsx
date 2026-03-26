@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  KeyboardAvoidingView, 
-  Platform,
-  StatusBar
-} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- TEMA ---
 const theme = {
@@ -27,17 +26,16 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-      
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Comportamento para o teclado não cobrir os inputs */}
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        
+
         {/* --- HEADER / LOGO --- */}
         <View style={styles.headerContainer}>
           <View style={styles.logoCircle}>
@@ -49,7 +47,7 @@ export default function LoginScreen() {
 
         {/* --- FORMULÁRIO --- */}
         <View style={styles.formContainer}>
-          
+
           {/* Input de E-mail */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mail</Text>
@@ -81,10 +79,10 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons 
-                  name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                  size={20} 
-                  color={theme.textMuted} 
+                <Ionicons
+                  name={showPassword ? "eye-outline" : "eye-off-outline"}
+                  size={20}
+                  color={theme.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -111,7 +109,7 @@ export default function LoginScreen() {
         </View>
 
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

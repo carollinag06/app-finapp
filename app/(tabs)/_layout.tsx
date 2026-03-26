@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Tabs, router } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Animated,
   Platform,
   StyleSheet,
   TouchableOpacity
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const theme = {
   bg: '#121212',
@@ -17,36 +18,14 @@ const theme = {
   border: '#333333',
 };
 
-// --- COMPONENTE DO BOTÃO CENTRAL ANIMADO ---
-const CustomTabBarButton = ({ children }: BottomTabBarButtonProps) => {
+// --- COMPONENTE DO BOTÃO CENTRAL ---
+const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Pulso suave contínuo no anel externo
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.25,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [pulseAnim]);
-
-  // Escala ao pressionar (efeito de "amassar" o botão)
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.88,
+      toValue: 0.9,
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
     }).start();
   };
 
@@ -54,63 +33,62 @@ const CustomTabBarButton = ({ children }: BottomTabBarButtonProps) => {
     Animated.spring(scaleAnim, {
       toValue: 1,
       useNativeDriver: true,
-      speed: 20,
-      bounciness: 8,
     }).start();
   };
 
   return (
     <TouchableOpacity
       style={styles.customButtonWrapper}
-      // 👇 Caminho corrigido para absoluto. Garante que sempre abra a tela certa!
-      onPress={() => router.push('../new-transaction')}
+      onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={1} // Desabilitamos a opacidade padrão porque usamos a animação de escala
+      activeOpacity={1}
     >
-      {/* Anel de pulso atrás do botão */}
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          { transform: [{ scale: pulseAnim }] },
-        ]}
-      />
-
-      {/* Botão principal com animação de escala */}
       <Animated.View
         style={[
           styles.customButton,
           { transform: [{ scale: scaleAnim }] },
         ]}
       >
-        {children}
+        <Ionicons name="add" size={32} color="#FFFFFF" />
       </Animated.View>
     </TouchableOpacity>
   );
 };
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
+  // Aumentamos o padding inferior de forma equilibrada para Android e iOS
+  // No Android com botões de navegação (insets.bottom === 0), usamos 12px de segurança.
+  // No modo gestos (insets.bottom > 0), usamos o valor do sistema + 4px de respiro.
+  const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'android' ? 12 : 12);
+  const barHeight = 60 + bottomPadding;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
-          height: 65,
-          paddingBottom: 8,
-          paddingTop: 8,
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          height: barHeight,
+          paddingBottom: bottomPadding,
+          paddingTop: 10,
+          borderTopWidth: 1,
           elevation: 0,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          // Removido o radius para eliminar os espaços brancos laterais
         },
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textMuted,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 11, // Um pouco menor para ficar mais elegante
+          fontWeight: '500',
+          marginBottom: 4,
         },
       }}
     >
@@ -119,7 +97,7 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
@@ -129,21 +107,18 @@ export default function TabLayout() {
         options={{
           title: 'Extrato',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list" size={size} color={color} />
+            <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* --- ABA DO BOTÃO CENTRAL --- */}
       <Tabs.Screen
         name="new-transaction-tab"
         options={{
-          title: '', // Sem título para o botão central
-          tabBarIcon: () => (
-            <Ionicons name="add" size={32} color="#FFF" />
+          title: '',
+          tabBarButton: (props) => (
+            <CustomTabBarButton {...props} onPress={() => router.push('/new-transaction')} />
           ),
-          // Injeta o nosso botão animado que faz o redirecionamento
-          tabBarButton: (props) => <CustomTabBarButton {...props} />,
         }}
       />
 
@@ -152,7 +127,17 @@ export default function TabLayout() {
         options={{
           title: 'Gráficos',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pie-chart" size={size} color={color} />
+            <Ionicons name="pie-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="mais"
+        options={{
+          title: 'Mais',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" size={size} color={color} />
           ),
         }}
       />
@@ -163,32 +148,23 @@ export default function TabLayout() {
 // --- ESTILOS ---
 const styles = StyleSheet.create({
   customButtonWrapper: {
-    top: -25, // Empurra o botão para cima da barra
+    top: -18, // Reajustado para a nova altura da barra
     justifyContent: 'center',
     alignItems: 'center',
-    width: 60,
-    height: 60,
-    elevation: 5,
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.primary,
-    opacity: 0.25,
+    width: 64,
+    height: 64,
   },
   customButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: theme.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 4,
     shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
-    ...Platform.select({ android: { elevation: 0 } }),
   },
 });

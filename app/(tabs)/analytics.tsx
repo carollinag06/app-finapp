@@ -2,15 +2,14 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactionStore } from '../../store/transactionStore';
 
 // --- DIMENSÕES E TEMA ---
@@ -139,6 +138,7 @@ export default function AnalyticsScreen() {
   const [activeTab, setActiveTab] = useState('geral'); // 'geral' | 'despesas' | 'receitas'
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
 
@@ -325,9 +325,7 @@ export default function AnalyticsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
-
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Header />
       <MonthSelector
         currentMonth={currentMonth}
@@ -370,7 +368,7 @@ export default function AnalyticsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
 
         {/* CARD 1: Evolução (Linha) */}
         <ChartCard title={activeTab === 'geral' ? "Balanço Mensal" : `Evolução das ${activeTab === 'receitas' ? 'receitas' : 'despesas'}`}>
@@ -500,7 +498,7 @@ export default function AnalyticsScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
