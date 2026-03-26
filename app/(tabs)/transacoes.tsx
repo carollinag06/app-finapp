@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
@@ -15,14 +15,16 @@ import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- CORES DO TEMA E CATEGORIAS ---
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLight: '#262626',
   text: '#FFFFFF',
-  textMuted: '#A0A0A0',
+  textMuted: '#999999',
   primary: '#8A2BE2', // Roxo
-  danger: '#F44336',  // Vermelho
-  success: '#4CAF50', // Verde
-  border: '#333333',
+  primaryLight: '#A450FF',
+  danger: '#FF5252',  // Vermelho
+  success: '#00E676', // Verde
+  border: '#2A2A2A',
 };
 
 const monthNames = [
@@ -30,31 +32,30 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
-const categoryColors: Record<string, string> = {
-  'Compras': '#8A2BE2',
-  'Transporte': '#9E9E9E',
-  'Educação': '#FFEB3B',
-  'Saúde': '#4CAF50',
-  'Alimentação': '#F44336',
-  'Casa': '#2196F3',
-  'Serviços': '#388E3C',
-  'Renda extra': '#8A2BE2',
-  'Salário': '#4CAF50',
-  'Investimento': '#2196F3',
-  'Moradia': '#8A2BE2',
+const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Alimentação': 'restaurant',
+  'Transporte': 'bus',
+  'Moradia': 'home',
+  'Saúde': 'medkit',
+  'Lazer': 'game-controller',
+  'Salário': 'cash',
+  'Freelance': 'laptop',
+  'Investimento': 'trending-up',
+  'Presente': 'gift',
+  'Outros': 'pricetag',
 };
 
-const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
-  'Alimentação': 'restaurant-outline',
-  'Transporte': 'bus-outline',
-  'Moradia': 'home-outline',
-  'Saúde': 'medkit-outline',
-  'Lazer': 'game-controller-outline',
-  'Salário': 'cash-outline',
-  'Freelance': 'laptop-outline',
-  'Investimento': 'trending-up-outline',
-  'Presente': 'gift-outline',
-  'Outros': 'pricetag-outline',
+const categoryColors: Record<string, string> = {
+  'Alimentação': '#FF5252',
+  'Transporte': '#FFD740',
+  'Moradia': '#8A2BE2',
+  'Saúde': '#00E676',
+  'Lazer': '#FF4081',
+  'Salário': '#00E676',
+  'Freelance': '#2196F3',
+  'Investimento': '#00BCD4',
+  'Presente': '#FF9800',
+  'Outros': '#9E9E9E',
 };
 
 // --- COMPONENTES ---
@@ -63,32 +64,23 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
   <View style={styles.header}>
     {!isSearching ? (
       <>
-        <Text style={styles.headerTitle}>Transações</Text>
+        <View>
+          <Text style={styles.headerTitle}>Extrato</Text>
+          <Text style={styles.headerSubtitle}>Histórico de lançamentos</Text>
+        </View>
         <View style={styles.headerIcons}>
           <TouchableOpacity
-            style={styles.iconButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="calendar-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.iconCircleHeader}
             onPress={onSearchToggle}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="search-outline" size={24} color={theme.text} />
+            <Ionicons name="search-outline" size={20} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.iconCircleHeader}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="filter-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons name="dots-vertical" size={26} color={theme.text} />
+            <Ionicons name="filter-outline" size={20} color={theme.text} />
           </TouchableOpacity>
         </View>
       </>
@@ -99,11 +91,11 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
           style={styles.backSearch}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar transação..."
+          placeholder="Buscar descrição ou categoria..."
           placeholderTextColor={theme.textMuted}
           autoFocus
           value={searchText}
@@ -123,13 +115,26 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
 );
 
 const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: any) => (
-  <View style={styles.monthSelector}>
-    <TouchableOpacity style={styles.monthArrow} onPress={onPrev}>
-      <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
+  <View style={styles.monthSelectorRow}>
+    <TouchableOpacity
+      style={styles.monthArrowBtn}
+      onPress={onPrev}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="chevron-back" size={18} color={theme.textMuted} />
     </TouchableOpacity>
-    <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
-    <TouchableOpacity style={styles.monthArrow} onPress={onNext}>
-      <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+
+    <View style={styles.monthDisplay}>
+      <Ionicons name="calendar-outline" size={16} color={theme.primary} style={{ marginRight: 8 }} />
+      <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
+    </View>
+
+    <TouchableOpacity
+      style={styles.monthArrowBtn}
+      onPress={onNext}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
     </TouchableOpacity>
   </View>
 );
@@ -148,22 +153,22 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
   return (
     <View style={styles.summaryCard}>
       <View style={styles.summaryItem}>
-        <Text style={styles.summaryLabel}>Receitas</Text>
+        <Text style={styles.summaryLabel}>Entradas</Text>
         <Text style={[styles.summaryValue, { color: theme.success }]}>
-          R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          + R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
       </View>
       <View style={styles.summaryDivider} />
       <View style={styles.summaryItem}>
-        <Text style={styles.summaryLabel}>Despesas</Text>
+        <Text style={styles.summaryLabel}>Saídas</Text>
         <Text style={[styles.summaryValue, { color: theme.danger }]}>
-          R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          - R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
       </View>
       <View style={styles.summaryDivider} />
       <View style={styles.summaryItem}>
         <Text style={styles.summaryLabel}>Balanço</Text>
-        <Text style={[styles.summaryValue, { color: balance >= 0 ? theme.success : theme.danger }]}>
+        <Text style={[styles.summaryValue, { color: theme.text }]}>
           R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
       </View>
@@ -173,7 +178,7 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
 
 const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id: string) => void }) => {
   const color = categoryColors[item.category] || theme.textMuted;
-  const icon = categoryIcons[item.category] || 'pricetag-outline';
+  const icon = categoryIcons[item.category] || 'pricetag';
   const isIncome = item.type === 'income';
 
   const handleEdit = () => {
@@ -185,7 +190,7 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id:
 
   const handleDelete = () => {
     Alert.alert(
-      "Excluir Transação",
+      "Excluir Lançamento",
       `Deseja realmente excluir "${item.description}"?`,
       [
         { text: "Cancelar", style: "cancel" },
@@ -199,29 +204,26 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id:
       style={styles.transactionItem}
       onPress={handleEdit}
       onLongPress={handleDelete}
+      activeOpacity={0.7}
     >
-      <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon} size={22} color={color} />
+      <View style={[styles.iconContainer, { backgroundColor: isIncome ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 82, 82, 0.1)' }]}>
+        <Ionicons name={icon} size={20} color={isIncome ? theme.success : theme.danger} />
       </View>
 
       <View style={styles.transactionDetails}>
-        <Text style={styles.transactionName}>{item.description}</Text>
+        <Text style={styles.transactionName} numberOfLines={1}>{item.description}</Text>
         <Text style={styles.transactionSubtitle}>
-          {item.category} {item.paymentMethod ? `• ${item.paymentMethod === 'credit' ? 'Cartão' : 'Débito'}` : ''}
+          {item.category} {item.paymentMethod ? `• ${item.paymentMethod === 'credit' ? 'Crédito' : 'Débito'}` : ''}
         </Text>
       </View>
 
       <View style={styles.transactionTrailing}>
         <Text style={[
           styles.transactionValue,
-          { color: isIncome ? theme.success : theme.danger }
+          { color: isIncome ? theme.success : theme.text }
         ]}>
-          {isIncome ? '+' : '-'} R$ {item.value.toFixed(2).replace('.', ',')}
+          {isIncome ? '+' : '-'} R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
-        <View style={[
-          styles.statusDot,
-          { backgroundColor: theme.success }
-        ]} />
       </View>
     </TouchableOpacity>
   );
@@ -362,22 +364,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 16,
-    paddingBottom: 8,
-    minHeight: 60,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: theme.text,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: theme.textMuted,
+    marginTop: 2,
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  iconButton: {
-    marginLeft: 16,
+  iconCircleHeader: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   // Search
   searchContainer: {
@@ -385,56 +399,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.surface,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 45,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 50,
     borderWidth: 1,
     borderColor: theme.border,
   },
   searchInput: {
     flex: 1,
     color: theme.text,
-    fontSize: 16,
+    fontSize: 15,
     marginLeft: 8,
   },
   backSearch: {
     marginRight: 4,
   },
   // Month Selector
-  monthSelector: {
+  monthSelectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    backgroundColor: theme.surface,
+    borderRadius: 16,
+    padding: 6,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
-  monthArrow: {
-    padding: 8,
+  monthArrowBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   monthText: {
-    fontSize: 16,
-    fontWeight: '600',
     color: theme.text,
-    marginHorizontal: 16,
+    fontSize: 15,
+    fontWeight: '600',
   },
   // List Content
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 100, // Aumentado para não cortar com a TabBar
   },
   // Summary Card
   summaryCard: {
     backgroundColor: theme.surface,
-    borderRadius: 16,
+    borderRadius: 24,
     flexDirection: 'row',
     padding: 20,
     marginBottom: 24,
-    marginTop: 8,
-    // Sombra leve para destacar no tema escuro
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   summaryItem: {
     flex: 1,
@@ -442,53 +462,59 @@ const styles = StyleSheet.create({
   },
   summaryDivider: {
     width: 1,
+    height: 30,
     backgroundColor: theme.border,
-    marginHorizontal: 16,
+    alignSelf: 'center',
   },
   summaryLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: theme.textMuted,
-    marginBottom: 4,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   // Section Title
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: theme.textMuted,
-    marginTop: 16,
+    marginTop: 20,
     marginBottom: 12,
     textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
   // Transaction Item
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
+    padding: 14,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   transactionDetails: {
     flex: 1,
-    justifyContent: 'center',
   },
   transactionName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   transactionSubtitle: {
     fontSize: 12,
@@ -496,33 +522,9 @@ const styles = StyleSheet.create({
   },
   transactionTrailing: {
     alignItems: 'flex-end',
-    justifyContent: 'center',
   },
   transactionValue: {
     fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  // FAB (Floating Action Button)
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    alignSelf: 'center',
-    backgroundColor: theme.primary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
   },
 });
