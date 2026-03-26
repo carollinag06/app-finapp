@@ -327,8 +327,6 @@ export default function TransactionsScreen() {
             <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
           </View>
         }
-
-        ListFooterComponent={<View style={{ height: 20 }} />}
       />
     </SafeAreaView>
   );
@@ -403,6 +401,7 @@ const styles = StyleSheet.create({
   // List Content
   listContent: {
     paddingHorizontal: 20,
+    paddingBottom: 100, // Aumentado para não cortar com a TabBar
   },
   // Summary Card
   summaryCard: {

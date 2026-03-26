@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20, // Reduzido para evitar espaço excessivo no web
+    paddingBottom: 100, // Aumentado para não cortar com a TabBar
     gap: 16,
   },
   card: {
