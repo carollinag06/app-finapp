@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
@@ -8,33 +8,25 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import {
-  ContributionGraph,
-  LineChart,
-  PieChart,
-  ProgressChart,
-  StackedBarChart
-} from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactionStore } from '../../store/transactionStore';
 
-// --- CONFIGURAÇÕES E TEMA ---
+// --- DIMENSÕES E TEMA ---
 const screenWidth = Dimensions.get('window').width;
-const chartWidth = screenWidth - 48; // Padding horizontal total de 24*2
+const chartWidth = screenWidth - 80; // Largura responsiva para o gráfico de linhas
 
 const theme = {
-  bg: '#0F0F0F',
-  surface: '#1A1A1A',
-  surfaceLight: '#262626',
+  bg: '#121212',
+  surface: '#1E1E1E',
   text: '#FFFFFF',
-  textMuted: '#999999',
+  textMuted: '#A0A0A0',
   primary: '#8A2BE2', // Roxo
-  primaryLight: '#A450FF',
-  danger: '#FF5252',  // Vermelho
-  success: '#00E676', // Verde vibrante
+  danger: '#F44336',  // Vermelho
   blue: '#2196F3',
-  yellow: '#FFD740',
-  border: '#2A2A2A'
+  yellow: '#FFEB3B',
+  green: '#4CAF50',
+  border: '#333333',
 };
 
 const monthNames = [
@@ -43,57 +35,98 @@ const monthNames = [
 ];
 
 const categoryColors: Record<string, string> = {
-  'Alimentação': '#FF5252',
-  'Transporte': '#FFD740',
-  'Moradia': '#8A2BE2',
-  'Saúde': '#00E676',
-  'Lazer': '#FF4081',
-  'Salário': '#00E676',
-  'Freelance': '#2196F3',
-  'Investimento': '#00BCD4',
-  'Presente': '#FF9800',
-  'Outros': '#9E9E9E',
+  'Moradia': theme.primary,
+  'Alimentação': theme.danger,
+  'Transporte': theme.yellow,
+  'Saúde': theme.green,
+  'Lazer': theme.blue,
+  'Outros': theme.textMuted,
 };
 
-// --- COMPONENTES ATÔMICOS ---
+// --- COMPONENTES MENORES ---
 
-const ChartSection = ({ title, subtitle, children }: { title: string, subtitle?: string, children: React.ReactNode }) => (
-  <View style={styles.chartSection}>
-    <View style={styles.chartSectionHeader}>
-      <Text style={styles.chartSectionTitle}>{title}</Text>
-      {subtitle && <Text style={styles.chartSectionSubtitle}>{subtitle}</Text>}
-    </View>
-    <View style={styles.chartCard}>
-      {children}
-    </View>
+const Header = () => (
+  <View style={styles.header}>
+    <TouchableOpacity style={styles.iconButton}>
+      <Feather name="menu" size={24} color={theme.text} />
+    </TouchableOpacity>
+    <Text style={styles.headerTitle}>Gráficos</Text>
+    <View style={{ width: 24 }} /> {/* Espaçador para centrar o título */}
   </View>
 );
 
-const SummaryChip = ({ label, value, type }: { label: string, value: string, type: 'balance' | 'income' | 'expense' }) => {
-  const color = type === 'income' ? theme.success : type === 'expense' ? theme.danger : theme.primary;
-  const icon = type === 'income' ? 'arrow-up' : type === 'expense' ? 'arrow-down' : 'wallet-outline';
+const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: any) => (
+  <View style={styles.monthSelector}>
+    <TouchableOpacity style={styles.monthArrow} onPress={onPrev}>
+      <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
+    </TouchableOpacity>
+    <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
+    <TouchableOpacity style={styles.monthArrow} onPress={onNext}>
+      <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+    </TouchableOpacity>
+  </View>
+);
+
+const ChartCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
+  <View style={styles.card}>
+    <Text style={styles.cardTitle}>{title}</Text>
+    {children}
+  </View>
+);
+
+// O NOVO COMPONENTE DONUT CHART (Centrado perfeitamente)
+const DonutChart = ({ data, centerText, centerSubtext }: any) => {
+  const chartSize = 200; // Tamanho fixo para garantir o alinhamento perfeito
 
   return (
-    <View style={styles.summaryChip}>
-      <View style={[styles.summaryChipIcon, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon as any} size={16} color={color} />
+    <View style={styles.donutWrapper}>
+      <View style={{ width: chartSize, height: chartSize, justifyContent: 'center', alignItems: 'center' }}>
+        <PieChart
+          data={data}
+          width={chartSize}
+          height={chartSize}
+          chartConfig={{ color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})` }}
+          accessor={"population"}
+          backgroundColor={"transparent"}
+          paddingLeft={"0"}
+          center={[chartSize / 4, 0]} // Truque para centrar o gráfico sem a legenda
+          hasLegend={false} // Removemos a legenda nativa
+          absolute
+        />
+
+        {/* O "Furo" da Rosca posicionado com Flexbox no centro absoluto */}
+        <View style={[StyleSheet.absoluteFill, styles.centerAll]}>
+          <View style={styles.donutHole}>
+            <Text style={styles.donutCenterText}>{centerText}</Text>
+            {centerSubtext && <Text style={styles.donutCenterSubtext}>{centerSubtext}</Text>}
+          </View>
+        </View>
       </View>
-      <View>
-        <Text style={styles.summaryChipLabel}>{label}</Text>
-        <Text style={[styles.summaryChipValue, { color }]}>{value}</Text>
+
+      {/* A Legenda Customizada (Substitui a legenda padrão) */}
+      <View style={styles.customLegendContainer}>
+        {data.map((item: any, index: number) => (
+          <View key={index} style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: item.color }]} />
+            <Text style={styles.legendText}>
+              {item.name} <Text style={styles.legendValue}>({item.population})</Text>
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );
 };
 
-const InsightItem = ({ title, desc, icon, color }: any) => (
-  <View style={styles.insightItem}>
-    <View style={[styles.insightIcon, { backgroundColor: `${color}15` }]}>
-      <Ionicons name={icon} size={20} color={color} />
+// Barra de progresso para o Ranking
+const RankingBar = ({ label, value, percentage, color }: any) => (
+  <View style={styles.rankingItem}>
+    <View style={styles.rankingHeader}>
+      <Text style={styles.rankingLabel}>{label}</Text>
+      <Text style={styles.rankingValue}>R$ {value}</Text>
     </View>
-    <View style={styles.insightContent}>
-      <Text style={styles.insightTitle}>{title}</Text>
-      <Text style={styles.insightDesc}>{desc}</Text>
+    <View style={styles.progressBarBg}>
+      <View style={[styles.progressBarFill, { backgroundColor: color, width: `${percentage}%` }]} />
     </View>
   </View>
 );
@@ -101,15 +134,15 @@ const InsightItem = ({ title, desc, icon, color }: any) => (
 // --- TELA PRINCIPAL ---
 
 export default function AnalyticsScreen() {
-  const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'geral' | 'despesas' | 'receitas'>('geral');
+  const [activeFilter, setActiveFilter] = useState('mensal');
+  const [activeTab, setActiveTab] = useState('geral'); // 'geral' | 'despesas' | 'receitas'
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
 
-  // --- LÓGICA DE DADOS ---
-
+  // Transações filtradas por mês/ano
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
       const [day, month, year] = t.date.split('/').map(Number);
@@ -117,48 +150,108 @@ export default function AnalyticsScreen() {
     });
   }, [transactions, currentMonth, currentYear]);
 
-  const stats = useMemo(() => {
-    const income = monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0);
-    const expense = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0);
-    return { income, expense, balance: income - expense };
-  }, [monthlyTransactions]);
-
+  // Transações específicas da aba ativa
   const filteredTransactions = useMemo(() => {
     if (activeTab === 'geral') return monthlyTransactions;
     const targetType = activeTab === 'despesas' ? 'expense' : 'income';
     return monthlyTransactions.filter(t => t.type === targetType);
   }, [monthlyTransactions, activeTab]);
 
-  // 1. Fluxo de Caixa (LineChart)
-  const lineChartData = useMemo(() => {
+  const totalValue = useMemo(() => {
+    return filteredTransactions.reduce((acc, t) => acc + t.value, 0);
+  }, [filteredTransactions]);
+
+  const evolucaoData = useMemo(() => {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const labels = ["01", "07", "14", "21", "28"];
-    const incomeData = new Array(31).fill(0);
-    const expenseData = new Array(31).fill(0);
 
-    monthlyTransactions.forEach(t => {
-      const day = parseInt(t.date.split('/')[0]);
-      if (t.type === 'income') incomeData[day - 1] += t.value;
-      else expenseData[day - 1] += t.value;
+    // Para visualização mensal, vamos usar 6 pontos fixos (01, 05, 10, 15, 20, 25, 30)
+    // Para visualização diária, todos os dias do mês.
+    const isDiaria = activeFilter === 'diaria';
+    const dataPointsCount = isDiaria ? daysInMonth : 7;
+
+    let labels: string[] = [];
+    if (isDiaria) {
+      for (let i = 1; i <= daysInMonth; i++) {
+        // Mostra label apenas a cada 5 dias para não poluir
+        if (i === 1 || i % 5 === 0 || i === daysInMonth) labels.push(i.toString().padStart(2, '0'));
+        else labels.push("");
+      }
+    } else {
+      labels = ["01", "05", "10", "15", "20", "25", "30"];
+    }
+
+    const getIdx = (day: number) => {
+      if (isDiaria) return day - 1;
+      // Mapeamento para os 7 pontos da visão mensal
+      if (day <= 1) return 0;
+      if (day <= 5) return 1;
+      if (day <= 10) return 2;
+      if (day <= 15) return 3;
+      if (day <= 20) return 4;
+      if (day <= 25) return 5;
+      return 6;
+    };
+
+    if (activeTab === 'geral') {
+      const incomeData = new Array(dataPointsCount).fill(0);
+      const expenseData = new Array(dataPointsCount).fill(0);
+      const balanceData = new Array(dataPointsCount).fill(0);
+
+      monthlyTransactions.forEach(t => {
+        const [day] = t.date.split('/').map(Number);
+        const idx = getIdx(day);
+        if (idx < dataPointsCount) {
+          if (t.type === 'income') incomeData[idx] += t.value;
+          else expenseData[idx] += t.value;
+        }
+      });
+
+      // Calcula o saldo acumulado
+      let cumulativeBalance = 0;
+      for (let i = 0; i < dataPointsCount; i++) {
+        cumulativeBalance += (incomeData[i] - expenseData[i]);
+        balanceData[i] = cumulativeBalance;
+      }
+
+      return {
+        labels,
+        datasets: [
+          { data: incomeData, color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, strokeWidth: 1 },
+          { data: expenseData, color: (opacity = 1) => `rgba(244, 67, 54, ${opacity})`, strokeWidth: 1 },
+          { data: balanceData, color: (opacity = 1) => `rgba(138, 43, 226, ${opacity})`, strokeWidth: 3 } // Linha de saldo mais grossa
+        ],
+        legend: ["Receitas", "Despesas", "Saldo"]
+      };
+    }
+
+    const data = new Array(dataPointsCount).fill(0);
+    filteredTransactions.forEach(t => {
+      const [day] = t.date.split('/').map(Number);
+      const idx = getIdx(day);
+      if (idx < dataPointsCount) data[idx] += t.value;
     });
-
-    // Agrupar por períodos para suavizar o gráfico
-    const points = [0, 6, 13, 20, 27, daysInMonth - 1];
-    const incomePoints = points.map(p => incomeData[p]);
-    const expensePoints = points.map(p => expenseData[p]);
 
     return {
       labels,
-      datasets: [
-        { data: incomePoints, color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`, strokeWidth: 2 },
-        { data: expensePoints, color: (opacity = 1) => `rgba(255, 82, 82, ${opacity})`, strokeWidth: 2 }
-      ],
-      legend: ["Entradas", "Saídas"]
+      datasets: [{
+        data: data.map(v => v || 0),
+        color: (opacity = 1) => activeTab === 'receitas' ? `rgba(76, 175, 80, ${opacity})` : `rgba(244, 67, 54, ${opacity})`,
+        strokeWidth: 2
+      }]
     };
-  }, [monthlyTransactions, currentMonth, currentYear]);
+  }, [filteredTransactions, monthlyTransactions, activeTab, activeFilter, currentMonth, currentYear]);
 
-  // 2. Divisão por Categoria (Donut/Pie Chart)
-  const pieData = useMemo(() => {
+  const comparativoGeralData = useMemo(() => {
+    const receitas = monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0);
+    const despesas = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0);
+
+    return [
+      { name: 'Receitas', population: receitas, color: theme.green, legendFontColor: theme.textMuted },
+      { name: 'Despesas', population: despesas, color: theme.danger, legendFontColor: theme.textMuted },
+    ].filter(d => d.population > 0);
+  }, [monthlyTransactions]);
+
+  const rankingData = useMemo(() => {
     const categories: Record<string, number> = {};
     filteredTransactions.forEach(t => {
       categories[t.category] = (categories[t.category] || 0) + t.value;
@@ -167,281 +260,243 @@ export default function AnalyticsScreen() {
     return Object.entries(categories)
       .map(([name, value]) => ({
         name,
-        population: value,
-        color: categoryColors[name] || theme.textMuted,
-        legendFontColor: theme.textMuted,
-        legendFontSize: 12
+        value,
+        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
+        color: categoryColors[name] || theme.textMuted
       }))
-      .sort((a, b) => b.population - a.population)
-      .slice(0, 5); // Top 5
+      .sort((a, b) => b.value - a.value);
+  }, [filteredTransactions, totalValue]);
+
+  const donutCategoriaData = useMemo(() => {
+    return rankingData.map(item => ({
+      name: item.name,
+      population: item.value,
+      color: item.color,
+      legendFontColor: theme.textMuted
+    }));
+  }, [rankingData]);
+
+  const recorrenciaData = useMemo(() => {
+    const data: Record<string, number> = { 'Fixas': 0, 'Variáveis': 0, 'Parceladas': 0 };
+    filteredTransactions.forEach(t => {
+      const rec = t.recurrence || 'variable';
+      if (rec === 'fixed') data['Fixas'] += t.value;
+      else if (rec === 'installment') data['Parceladas'] += t.value;
+      else data['Variáveis'] += t.value;
+    });
+
+    return [
+      { name: 'Fixas', population: data['Fixas'], color: theme.blue, legendFontColor: theme.textMuted },
+      { name: 'Variáveis', population: data['Variáveis'], color: theme.yellow, legendFontColor: theme.textMuted },
+      { name: 'Parceladas', population: data['Parceladas'], color: theme.danger, legendFontColor: theme.textMuted },
+    ].filter(d => d.population > 0);
   }, [filteredTransactions]);
 
-  // 3. Comparativo Semanal (Stacked Bar)
-  const weeklyData = useMemo(() => {
-    const weeks = ["Sem 1", "Sem 2", "Sem 3", "Sem 4"];
-    const data = [[0, 0], [0, 0], [0, 0], [0, 0]];
-
-    monthlyTransactions.forEach(t => {
-      const day = parseInt(t.date.split('/')[0]);
-      const weekIdx = Math.min(Math.floor((day - 1) / 7), 3);
-      if (t.type === 'income') data[weekIdx][0] += t.value;
-      else data[weekIdx][1] += t.value;
+  const debitoCreditoData = useMemo(() => {
+    const data: Record<string, number> = { 'Crédito': 0, 'Débito/Pix': 0 };
+    filteredTransactions.forEach(t => {
+      const method = t.paymentMethod || 'debit';
+      if (method === 'credit') data['Crédito'] += t.value;
+      else data['Débito/Pix'] += t.value;
     });
 
-    return {
-      labels: weeks,
-      legend: ["Entradas", "Saídas"],
-      data,
-      barColors: [theme.success, theme.danger]
-    };
-  }, [monthlyTransactions]);
+    return [
+      { name: 'Crédito', population: data['Crédito'], color: theme.primary, legendFontColor: theme.textMuted },
+      { name: 'Débito / Pix', population: data['Débito/Pix'], color: theme.blue, legendFontColor: theme.textMuted },
+    ].filter(d => d.population > 0);
+  }, [filteredTransactions]);
 
-  // 4. Metas de Gastos (Progress Chart)
-  const progressData = useMemo(() => {
-    const goals = [
-      { name: 'Alimentação', limit: 1200 },
-      { name: 'Moradia', limit: 2500 },
-      { name: 'Lazer', limit: 600 }
-    ];
-
-    const labels = goals.map(g => g.name);
-    const data = goals.map(g => {
-      const spent = monthlyTransactions
-        .filter(t => t.category === g.name && t.type === 'expense')
-        .reduce((acc, t) => acc + t.value, 0);
-      return Math.min(spent / g.limit, 1);
-    });
-
-    return { labels, data };
-  }, [monthlyTransactions]);
-
-  // 5. Atividade (ContributionGraph)
-  const heatmapData = useMemo(() => {
-    const activity: Record<string, number> = {};
-    monthlyTransactions.forEach(t => {
-      const [d, m, y] = t.date.split('/').map(Number);
-      const key = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
-      activity[key] = (activity[key] || 0) + 1;
-    });
-    return Object.entries(activity).map(([date, count]) => ({ date, count }));
-  }, [monthlyTransactions]);
-
-  // 6. Insights Dinâmicos
-  const insights = useMemo(() => {
-    const list = [];
-    const topCategory = pieData[0];
-
-    if (topCategory && activeTab !== 'receitas') {
-      list.push({
-        title: "Atenção ao Grupo",
-        desc: `Seus maiores gastos foram com ${topCategory.name}. Que tal rever esses custos?`,
-        icon: "alert-circle-outline",
-        color: theme.danger
-      });
-    }
-
-    if (stats.balance > 0) {
-      list.push({
-        title: "Balanço Positivo",
-        desc: `Você economizou R$ ${stats.balance.toLocaleString('pt-BR')} este mês. Parabéns!`,
-        icon: "trending-up-outline",
-        color: theme.success
-      });
-    } else if (stats.balance < 0) {
-      list.push({
-        title: "Balanço Negativo",
-        desc: `Suas saídas superaram as entradas em R$ ${Math.abs(stats.balance).toLocaleString('pt-BR')}.`,
-        icon: "trending-down-outline",
-        color: theme.danger
-      });
-    }
-
-    if (monthlyTransactions.length > 20) {
-      list.push({
-        title: "Consistência",
-        desc: "Você está mantendo um ótimo registro de todas as suas atividades financeiras.",
-        icon: "checkmark-done-circle-outline",
-        color: theme.primary
-      });
-    }
-
-    return list;
-  }, [pieData, stats, monthlyTransactions, activeTab]);
-
-  // --- HANDLERS ---
-
-  const handleMonthChange = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(v => v - 1);
-      } else setCurrentMonth(v => v - 1);
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
     } else {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(v => v + 1);
-      } else setCurrentMonth(v => v + 1);
+      setCurrentMonth(currentMonth - 1);
     }
   };
 
-  const chartConfig = {
-    backgroundColor: theme.bg,
-    backgroundGradientFrom: theme.surface,
-    backgroundGradientTo: theme.surface,
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(153, 153, 153, ${opacity})`,
-    style: { borderRadius: 16 },
-    propsForDots: { r: "5", strokeWidth: "2", stroke: theme.primary },
-    propsForLabels: { fontSize: 10, fontWeight: '600' }
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* HEADER FIXO */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Análise Financeira</Text>
-          <Text style={styles.headerSubtitle}>Visualize sua saúde financeira</Text>
-        </View>
-        <TouchableOpacity style={styles.shareBtn}>
-          <Ionicons name="share-outline" size={22} color={theme.text} />
+      <Header />
+      <MonthSelector
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+        onPrev={handlePrevMonth}
+        onNext={handleNextMonth}
+      />
+
+      {/* NAVEGAÇÃO SUPERIOR (Sub-tabs) */}
+      <View style={styles.subTabsContainer}>
+        <TouchableOpacity style={styles.subTabItem} onPress={() => setActiveTab('geral')}>
+          <Text style={[styles.subTabText, activeTab === 'geral' && styles.subTabTextActive]}>Geral</Text>
+          {activeTab === 'geral' && <View style={[styles.subTabIndicator, { backgroundColor: theme.primary }]} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.subTabItem} onPress={() => setActiveTab('despesas')}>
+          <Text style={[styles.subTabText, activeTab === 'despesas' && styles.subTabTextActive]}>Despesas</Text>
+          {activeTab === 'despesas' && <View style={[styles.subTabIndicator, { backgroundColor: theme.danger }]} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.subTabItem} onPress={() => setActiveTab('receitas')}>
+          <Text style={[styles.subTabText, activeTab === 'receitas' && styles.subTabTextActive]}>Receitas</Text>
+          {activeTab === 'receitas' && <View style={[styles.subTabIndicator, { backgroundColor: theme.green }]} />}
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-      >
-        {/* SELETOR DE MÊS */}
-        <View style={styles.monthPicker}>
-          <TouchableOpacity onPress={() => handleMonthChange('prev')} style={styles.monthBtn}>
-            <Ionicons name="chevron-back" size={20} color={theme.textMuted} />
-          </TouchableOpacity>
-          <View style={styles.monthLabel}>
-            <Ionicons name="calendar-outline" size={18} color={theme.primary} />
-            <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
-          </View>
-          <TouchableOpacity onPress={() => handleMonthChange('next')} style={styles.monthBtn}>
-            <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
-          </TouchableOpacity>
-        </View>
+      {/* Filtros em formato de Pill */}
+      <View style={styles.filtersContainer}>
+        <TouchableOpacity
+          style={[styles.filterPill, activeFilter === 'mensal' && styles.filterPillActive]}
+          onPress={() => setActiveFilter('mensal')}
+        >
+          <Text style={[styles.filterText, activeFilter === 'mensal' && styles.filterTextActive]}>Evolução mensal</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterPill, activeFilter === 'diaria' && styles.filterPillActive]}
+          onPress={() => setActiveFilter('diaria')}
+        >
+          <Text style={[styles.filterText, activeFilter === 'diaria' && styles.filterTextActive]}>Evolução diária</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* RESUMO RÁPIDO */}
-        <View style={styles.summaryContainer}>
-          <SummaryChip label="Saldo" value={`R$ ${stats.balance.toLocaleString('pt-BR')}`} type="balance" />
-          <View style={styles.summaryRow}>
-            <SummaryChip label="Entradas" value={`+ R$ ${stats.income.toLocaleString('pt-BR')}`} type="income" />
-            <SummaryChip label="Saídas" value={`- R$ ${stats.expense.toLocaleString('pt-BR')}`} type="expense" />
-          </View>
-        </View>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
 
-        {/* FILTROS (TABS) */}
-        <View style={styles.tabBar}>
-          {(['geral', 'despesas', 'receitas'] as const).map(tab => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
-              {activeTab === tab && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* GRÁFICO 1: EVOLUÇÃO (LINE) */}
-        <ChartSection title="Fluxo de Caixa" subtitle="Entradas vs Saídas ao longo do mês">
-          <LineChart
-            data={lineChartData}
-            width={chartWidth}
-            height={220}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withInnerLines={false}
-          />
-        </ChartSection>
-
-        {/* GRÁFICO 2: CATEGORIAS (PIE) */}
-        <ChartSection title="Distribuição" subtitle={`Onde seu dinheiro está ${activeTab === 'receitas' ? 'vindo' : 'indo'}`}>
-          {pieData.length > 0 ? (
-            <PieChart
-              data={pieData}
-              width={chartWidth}
-              height={200}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="0"
-              center={[10, 0]}
-              absolute
-            />
-          ) : (
-            <Text style={styles.emptyText}>Sem dados para este período</Text>
-          )}
-        </ChartSection>
-
-        {/* GRÁFICO 3: SEMANAL (STACKED BAR) */}
-        {activeTab === 'geral' && (
-          <ChartSection title="Comparativo Semanal" subtitle="Balanço por semana">
-            <StackedBarChart
-              data={weeklyData}
+        {/* CARD 1: Evolução (Linha) */}
+        <ChartCard title={activeTab === 'geral' ? "Balanço Mensal" : `Evolução das ${activeTab === 'receitas' ? 'receitas' : 'despesas'}`}>
+          <View style={styles.chartWrapper}>
+            <LineChart
+              data={evolucaoData}
               width={chartWidth}
               height={220}
+              yAxisLabel="R$ "
+              yAxisSuffix=""
+              withInnerLines={false}
+              withOuterLines={false}
               chartConfig={{
-                ...chartConfig,
-                barPercentage: 0.6
+                backgroundColor: theme.surface,
+                backgroundGradientFrom: theme.surface,
+                backgroundGradientTo: theme.surface,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.2})`, // Linhas de grade sutis
+                labelColor: (opacity = 1) => theme.textMuted,
+                style: { borderRadius: 16 },
+                propsForDots: { r: "3", strokeWidth: "1" }
               }}
-              style={styles.chart}
-              hideLegend={false}
+              bezier
+              style={styles.lineChart}
             />
-          </ChartSection>
+          </View>
+        </ChartCard>
+
+        {activeTab === 'geral' ? (
+          <>
+            {/* CARD 2 GERAL: Comparativo Donut */}
+            <ChartCard title="Receitas vs Despesas">
+              {comparativoGeralData.length > 0 ? (
+                <DonutChart
+                  data={comparativoGeralData}
+                  centerText={`R$ ${(comparativoGeralData.reduce((acc, d) => acc + d.population, 0)).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                  centerSubtext="Movimentado"
+                />
+              ) : (
+                <Text style={{ color: theme.textMuted, textAlign: 'center' }}>Sem dados este mês</Text>
+              )}
+            </ChartCard>
+
+            {/* CARD 3 GERAL: Resumo do Mês */}
+            <ChartCard title="Resumo do Período">
+              <View style={{ gap: 12 }}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Total Receitas</Text>
+                  <Text style={[styles.summaryValue, { color: theme.green }]}>
+                    R$ {monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Total Despesas</Text>
+                  <Text style={[styles.summaryValue, { color: theme.danger }]}>
+                    R$ {monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 12 }]}>
+                  <Text style={[styles.summaryLabel, { fontWeight: 'bold', color: theme.text }]}>Balanço</Text>
+                  <Text style={[styles.summaryValue, { fontWeight: 'bold', color: (monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0) - monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)) >= 0 ? theme.green : theme.danger }]}>
+                    R$ {(monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0) - monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+            </ChartCard>
+          </>
+        ) : (
+          <>
+            {/* CARD 2: Ranking de categorias (Barras horizontais) */}
+            <ChartCard title={`Ranking de categorias (${activeTab === 'receitas' ? 'Receitas' : 'Despesas'})`}>
+              {rankingData.length > 0 ? rankingData.map((item, index) => (
+                <RankingBar
+                  key={index}
+                  label={item.name}
+                  value={item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  percentage={item.percentage}
+                  color={item.color}
+                />
+              )) : (
+                <Text style={{ color: theme.textMuted, textAlign: 'center' }}>Nenhuma transação encontrada</Text>
+              )}
+            </ChartCard>
+
+            {/* CARD 3: Por categoria (Donut) */}
+            <ChartCard title={`${activeTab === 'receitas' ? 'Receitas' : 'Despesas'} por categoria`}>
+              {donutCategoriaData.length > 0 ? (
+                <DonutChart
+                  data={donutCategoriaData}
+                  centerText={`R$ ${totalValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                  centerSubtext="Total"
+                />
+              ) : (
+                <Text style={{ color: theme.textMuted, textAlign: 'center' }}>Sem dados</Text>
+              )}
+            </ChartCard>
+
+            {/* CARD 4: Despesas por recorrência (Apenas Despesas) */}
+            {activeTab === 'despesas' && (
+              <ChartCard title="Despesas por recorrência">
+                {recorrenciaData.length > 0 ? (
+                  <DonutChart
+                    data={recorrenciaData}
+                    centerText={`${recorrenciaData.length > 0 ? '100%' : '0%'}`}
+                    centerSubtext="Despesas"
+                  />
+                ) : (
+                  <Text style={{ color: theme.textMuted, textAlign: 'center' }}>Sem dados</Text>
+                )}
+              </ChartCard>
+            )}
+
+            {/* CARD 5: Débito vs Crédito (Apenas Despesas) */}
+            {activeTab === 'despesas' && (
+              <ChartCard title="Débito vs Crédito">
+                {debitoCreditoData.length > 0 ? (
+                  <DonutChart
+                    data={debitoCreditoData}
+                    centerText={debitoCreditoData[0]?.name || ""}
+                    centerSubtext="Maioria"
+                  />
+                ) : (
+                  <Text style={{ color: theme.textMuted, textAlign: 'center' }}>Sem dados</Text>
+                )}
+              </ChartCard>
+            )}
+          </>
         )}
-
-        {/* GRÁFICO 4: METAS (PROGRESS) */}
-        <ChartSection title="Progresso de Orçamento" subtitle="Uso do limite planejado">
-          <ProgressChart
-            data={progressData}
-            width={chartWidth}
-            height={200}
-            strokeWidth={12}
-            radius={32}
-            chartConfig={{
-              ...chartConfig,
-              color: (opacity = 1) => `rgba(138, 43, 226, ${opacity})`,
-            }}
-            hideLegend={false}
-            style={styles.chart}
-          />
-        </ChartSection>
-
-        {/* GRÁFICO 5: ATIVIDADE (HEATMAP) */}
-        <ChartSection title="Frequência de Uso" subtitle="Atividade diária de lançamentos">
-          <ContributionGraph
-            values={heatmapData}
-            endDate={new Date(currentYear, currentMonth + 1, 0)}
-            numDays={90}
-            width={chartWidth}
-            height={220}
-            chartConfig={chartConfig}
-            tooltipDataAttrs={() => ({})}
-          />
-        </ChartSection>
-
-        {/* SEÇÃO DE INSIGHTS */}
-        <View style={styles.insightsSection}>
-          <Text style={styles.sectionHeaderTitle}>Análise do Gestor</Text>
-          {insights.map((item, idx) => (
-            <InsightItem key={idx} {...item} />
-          ))}
-          {insights.length === 0 && (
-            <Text style={styles.emptyText}>Adicione mais transações para receber insights.</Text>
-          )}
-        </View>
-
       </ScrollView>
     </View>
   );
@@ -456,195 +511,226 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: theme.text,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: theme.textMuted,
-    marginTop: 2,
+  iconButton: {
+    padding: 4,
   },
-  shareBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-  },
-  monthPicker: {
+  monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.surface,
-    padding: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-    marginBottom: 24,
+    justifyContent: 'center',
+    paddingVertical: 12,
   },
-  monthBtn: {
+  monthArrow: {
     padding: 8,
   },
-  monthLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   monthText: {
-    color: theme.text,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: theme.text,
+    marginHorizontal: 16,
   },
-  summaryContainer: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  summaryRow: {
+  filtersContainer: {
     flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
     gap: 12,
   },
-  summaryChip: {
+  filterPill: {
     flex: 1,
-    backgroundColor: theme.surface,
-    padding: 16,
-    borderRadius: 24,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: theme.surface,
     borderWidth: 1,
     borderColor: theme.border,
   },
-  summaryChipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  filterPillActive: {
+    backgroundColor: 'rgba(138, 43, 226, 0.15)', // Roxo transparente
+    borderColor: theme.primary,
   },
-  summaryChipLabel: {
-    fontSize: 12,
+  filterText: {
     color: theme.textMuted,
+    fontSize: 14,
     fontWeight: '600',
   },
-  summaryChipValue: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 16,
-  },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tabItemActive: {},
-  tabText: {
-    color: theme.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  tabTextActive: {
+  filterTextActive: {
     color: theme.primary,
   },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: 24,
-    height: 3,
-    backgroundColor: theme.primary,
-    borderRadius: 2,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100, // Aumentado para não cortar com a TabBar
+    gap: 16,
   },
-  chartSection: {
-    marginBottom: 32,
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  chartSectionHeader: {
+  cardTitle: {
+    color: theme.text,
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 16,
   },
-  chartSectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  chartSectionSubtitle: {
-    fontSize: 12,
-    color: theme.textMuted,
-    marginTop: 4,
-  },
-  chartCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 28,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
+  // Gráfico de Linha
+  chartWrapper: {
     alignItems: 'center',
-    overflow: 'hidden',
+    marginLeft: -15, // Ajuste fino para o react-native-chart-kit não cortar a esquerda
   },
-  chart: {
-    marginVertical: 8,
+  lineChart: {
     borderRadius: 16,
   },
-  emptyText: {
-    color: theme.textMuted,
-    fontSize: 14,
-    paddingVertical: 40,
-    textAlign: 'center',
+
+  // --- NOVOS ESTILOS DO DONUT CHART ---
+  donutWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
-  insightsSection: {
-    marginTop: 8,
-    gap: 12,
+  centerAll: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+  donutHole: {
+    width: 110, // Tamanho do furo central
+    height: 110,
+    borderRadius: 55, // Metade da width para ser um círculo perfeito
+    backgroundColor: theme.surface, // Mesma cor do card para "furar" a pizza
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  donutCenterText: {
     color: theme.text,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  donutCenterSubtext: {
+    color: theme.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  // Estilos da Legenda Customizada
+  customLegendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingHorizontal: 10,
+    gap: 16,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  insightItem: {
-    flexDirection: 'row',
-    backgroundColor: theme.surface,
-    padding: 16,
-    borderRadius: 24,
-    alignItems: 'center',
-    gap: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
   },
-  insightIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  insightDesc: {
+  legendText: {
     color: theme.textMuted,
     fontSize: 13,
-    marginTop: 2,
-    lineHeight: 18,
+  },
+  legendValue: {
+    color: theme.text,
+    fontWeight: 'bold',
+  },
+
+  // Ranking Bars
+  rankingItem: {
+    marginBottom: 16,
+  },
+  rankingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  rankingLabel: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  rankingValue: {
+    color: theme.textMuted,
+    fontSize: 14,
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: theme.border,
+    borderRadius: 4,
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  // Resumo Geral
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    color: theme.textMuted,
+    fontSize: 14,
+  },
+  summaryValue: {
+    color: theme.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Navegação Superior (Sub-tabs)
+  subTabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.surface,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  subTabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    position: 'relative',
+  },
+  subTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.textMuted,
+  },
+  subTabTextActive: {
+    color: theme.text,
+  },
+  subTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: '60%',
+    height: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
   }
 });

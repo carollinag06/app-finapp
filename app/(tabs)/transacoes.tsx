@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,8 @@ const theme = {
   success: '#00E676', // Verde
   border: '#2A2A2A',
 };
+
+const MAX_WIDTH = 600; // Largura máxima para desktop
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -232,11 +235,14 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id:
 // --- TELA PRINCIPAL ---
 
 export default function TransactionsScreen() {
+  const { width: screenWidth } = useWindowDimensions();
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState('');
   const insets = useSafeAreaInsets();
+
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   const transactions = useTransactionStore((state) => state.transactions);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
@@ -308,46 +314,48 @@ export default function TransactionsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header
-        isSearching={isSearching}
-        onSearchToggle={() => {
-          setIsSearching(!isSearching);
-          if (isSearching) setSearchText('');
-        }}
-        searchText={searchText}
-        setSearchText={setSearchText}
-      />
-
-      {!isSearching && (
-        <MonthSelector
-          currentMonth={currentMonth}
-          currentYear={currentYear}
-          onPrev={handlePrevMonth}
-          onNext={handleNextMonth}
+      <View style={styles.centeredWrapper}>
+        <Header
+          isSearching={isSearching}
+          onSearchToggle={() => {
+            setIsSearching(!isSearching);
+            if (isSearching) setSearchText('');
+          }}
+          searchText={searchText}
+          setSearchText={setSearchText}
         />
-      )}
 
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-
-        ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
-
-        renderSectionHeader={({ section: { title } }) => (
-          <Text style={styles.sectionTitle}>{title}</Text>
+        {!isSearching && (
+          <MonthSelector
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            onPrev={handlePrevMonth}
+            onNext={handleNextMonth}
+          />
         )}
 
-        renderItem={({ item }) => <TransactionItem item={item} onDelete={deleteTransaction} />}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+          showsVerticalScrollIndicator={false}
 
-        ListEmptyComponent={
-          <View style={{ padding: 40, alignItems: 'center' }}>
-            <Ionicons name="search-outline" size={48} color={theme.border} style={{ marginBottom: 16 }} />
-            <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
-          </View>
-        }
-      />
+          ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
+
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionTitle}>{title}</Text>
+          )}
+
+          renderItem={({ item }) => <TransactionItem item={item} onDelete={deleteTransaction} />}
+
+          ListEmptyComponent={
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Ionicons name="search-outline" size={48} color={theme.border} style={{ marginBottom: 16 }} />
+              <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
+            </View>
+          }
+        />
+      </View>
     </View>
   );
 }
@@ -358,6 +366,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
   },
   // Header
   header: {

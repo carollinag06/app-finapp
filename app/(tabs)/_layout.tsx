@@ -6,7 +6,8 @@ import {
   Animated,
   Platform,
   StyleSheet,
-  TouchableOpacity
+  TouchableOpacity,
+  useWindowDimensions
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,12 +59,16 @@ const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
 
   // Aumentamos o padding inferior de forma equilibrada para Android e iOS
   // No Android com botões de navegação (insets.bottom === 0), usamos 12px de segurança.
   // No modo gestos (insets.bottom > 0), usamos o valor do sistema + 4px de respiro.
   const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'android' ? 12 : 12);
   const barHeight = 60 + bottomPadding;
+
+  const MAX_WIDTH = 600;
+  const isDesktop = screenWidth > MAX_WIDTH;
 
   return (
     <Tabs
@@ -78,12 +83,21 @@ export default function TabLayout() {
           paddingBottom: bottomPadding,
           paddingTop: 10,
           borderTopWidth: 1,
-          elevation: 0,
+          elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          // Removido o radius para eliminar os espaços brancos laterais
+          shadowOpacity: 0.2,
+          shadowRadius: 10,
+          // Ajustes para desktop
+          alignSelf: 'center',
+          width: isDesktop ? MAX_WIDTH : '100%',
+          position: isDesktop ? 'absolute' : 'relative',
+          bottom: isDesktop ? 30 : 0,
+          left: isDesktop ? (screenWidth - MAX_WIDTH) / 2 : 0,
+          borderRadius: isDesktop ? 30 : 0,
+          zIndex: 100,
+          borderWidth: isDesktop ? 1 : 0,
+          borderColor: theme.border,
         },
         tabBarLabelStyle: {
           fontSize: 11, // Um pouco menor para ficar mais elegante

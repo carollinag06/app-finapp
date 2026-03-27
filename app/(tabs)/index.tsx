@@ -2,11 +2,11 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { ComponentProps, useMemo, useState } from 'react';
 import {
-  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ interface Conta {
   icone: IoniconsName;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const MAX_WIDTH = 600; // Largura máxima para desktop
 
 const monthNames = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -161,37 +161,43 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas }: any
   );
 };
 
-const AtalhosRapidos = () => (
-  <View style={styles.shortcutsContainer}>
-    <TouchableOpacity style={styles.shortcutItem} onPress={() => router.push('/new-transaction')}>
-      <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
-        <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
-      </View>
-      <Text style={styles.shortcutText}>Lançar</Text>
-    </TouchableOpacity>
+const AtalhosRapidos = () => {
+  const { width: screenWidth } = useWindowDimensions();
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
+  const shortcutWidth = (contentWidth - 40 - 48) / 4;
 
-    <TouchableOpacity style={styles.shortcutItem}>
-      <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}>
-        <Ionicons name="pie-chart-outline" size={24} color={theme.success} />
-      </View>
-      <Text style={styles.shortcutText}>Orçamento</Text>
-    </TouchableOpacity>
+  return (
+    <View style={styles.shortcutsContainer}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/new-transaction')}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
+          <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
+        </View>
+        <Text style={styles.shortcutText}>Lançar</Text>
+      </TouchableOpacity>
 
-    <TouchableOpacity style={styles.shortcutItem}>
-      <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
-        <Ionicons name="calendar-outline" size={24} color="#2196F3" />
-      </View>
-      <Text style={styles.shortcutText}>Metas</Text>
-    </TouchableOpacity>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}>
+          <Ionicons name="pie-chart-outline" size={24} color={theme.success} />
+        </View>
+        <Text style={styles.shortcutText}>Orçamento</Text>
+      </TouchableOpacity>
 
-    <TouchableOpacity style={styles.shortcutItem}>
-      <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(255, 215, 64, 0.15)' }]}>
-        <Ionicons name="options-outline" size={24} color={theme.warning} />
-      </View>
-      <Text style={styles.shortcutText}>Categorias</Text>
-    </TouchableOpacity>
-  </View>
-);
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
+          <Ionicons name="calendar-outline" size={24} color="#2196F3" />
+        </View>
+        <Text style={styles.shortcutText}>Metas</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(255, 215, 64, 0.15)' }]}>
+          <Ionicons name="options-outline" size={24} color={theme.warning} />
+        </View>
+        <Text style={styles.shortcutText}>Categorias</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const TransacoesRecentes = ({ transactions }: { transactions: any[] }) => (
   <View style={styles.section}>
@@ -258,6 +264,11 @@ export default function Dashboard() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
+  const cardWidth = contentWidth - 40; // Considerando o paddingHorizontal de 20 em scrollContent
+  const shortcutWidth = (cardWidth - 48) / 4; // 48 é o gap acumulado entre 4 itens (16 * 3)
 
   const transactions = useTransactionStore((state) => state.transactions);
 
@@ -299,47 +310,49 @@ export default function Dashboard() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header
-        currentMonth={currentMonth}
-        currentYear={currentYear}
-        onPrev={handlePrevMonth}
-        onNext={handleNextMonth}
-      />
-
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <CardSaldo
-          mostrarSaldo={mostrarSaldo}
-          toggleSaldo={() => setMostrarSaldo(!mostrarSaldo)}
-          saldo={saldoAtual}
-          receitas={receitasTotais}
-          despesas={despesasTotais}
+      <View style={styles.centeredWrapper}>
+        <Header
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          onPrev={handlePrevMonth}
+          onNext={handleNextMonth}
         />
 
-        <AtalhosRapidos />
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <CardSaldo
+            mostrarSaldo={mostrarSaldo}
+            toggleSaldo={() => setMostrarSaldo(!mostrarSaldo)}
+            saldo={saldoAtual}
+            receitas={receitasTotais}
+            despesas={despesasTotais}
+          />
 
-        <HealthCard />
+          <AtalhosRapidos />
 
-        <TransacoesRecentes transactions={monthlyTransactions} />
+          <HealthCard />
 
-        {/* Card de Investimento Mock */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Investimentos</Text>
-          <TouchableOpacity style={styles.investCard}>
-            <View style={styles.investIconBg}>
-              <MaterialCommunityIcons name="chart-areaspline" size={24} color={theme.primary} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 16 }}>
-              <Text style={styles.investTitle}>Rendimento CDI</Text>
-              <Text style={styles.investSubtitle}>Seu dinheiro rendeu R$ 12,40 hoje</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.border} />
-          </TouchableOpacity>
-        </View>
+          <TransacoesRecentes transactions={monthlyTransactions} />
 
-      </ScrollView>
+          {/* Card de Investimento Mock */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Investimentos</Text>
+            <TouchableOpacity style={styles.investCard}>
+              <View style={styles.investIconBg}>
+                <MaterialCommunityIcons name="chart-areaspline" size={24} color={theme.primary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text style={styles.investTitle}>Rendimento CDI</Text>
+                <Text style={styles.investSubtitle}>Seu dinheiro rendeu R$ 12,40 hoje</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.border} />
+            </TouchableOpacity>
+          </View>
+
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -350,6 +363,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -529,7 +548,6 @@ const styles = StyleSheet.create({
   },
   shortcutItem: {
     alignItems: 'center',
-    width: (SCREEN_WIDTH - 40 - 48) / 4,
   },
   shortcutIcon: {
     width: 56,

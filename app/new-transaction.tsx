@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,8 @@ const theme = {
   success: '#4CAF50', // Verde (Receita)
   danger: '#F44336',  // Vermelho (Despesa)
 };
+
+const MAX_WIDTH = 600; // Largura máxima para desktop
 
 // --- CATEGORIAS MOCKADAS ---
 const expenseCategories = [
@@ -49,6 +52,9 @@ export default function NewTransactionScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   // Estados do formulário
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
@@ -145,194 +151,196 @@ export default function NewTransactionScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        {/* --- HEADER --- */}
-        <View style={styles.header}>
-          {/* Adicionado router.back() para o botão de fechar funcionar */}
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{editId ? 'Editar Transação' : 'Nova Transação'}</Text>
-          {editId ? (
-            <TouchableOpacity onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={24} color={theme.danger} />
+      <View style={styles.centeredWrapper}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          {/* --- HEADER --- */}
+          <View style={styles.header}>
+            {/* Adicionado router.back() para o botão de fechar funcionar */}
+            <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+              <Ionicons name="close" size={24} color={theme.text} />
             </TouchableOpacity>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
-          {/* --- SELETOR DE TIPO (Despesa / Receita) --- */}
-          <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[styles.typeButton, isExpense && { backgroundColor: theme.danger }]}
-              onPress={() => {
-                setTransactionType('expense');
-                setSelectedCategory(expenseCategories[0].id);
-              }}
-            >
-              <Text style={[styles.typeText, isExpense && styles.typeTextActive]}>Despesa</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.typeButton, !isExpense && { backgroundColor: theme.success }]}
-              onPress={() => {
-                setTransactionType('income');
-                setSelectedCategory(incomeCategories[0].id);
-              }}
-            >
-              <Text style={[styles.typeText, !isExpense && styles.typeTextActive]}>Receita</Text>
-            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{editId ? 'Editar Transação' : 'Nova Transação'}</Text>
+            {editId ? (
+              <TouchableOpacity onPress={handleDelete}>
+                <Ionicons name="trash-outline" size={24} color={theme.danger} />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 40 }} />
+            )}
           </View>
 
-          {/* --- INPUT DE VALOR (Destacado) --- */}
-          <View style={styles.valueContainer}>
-            <Text style={styles.valueLabel}>Valor da {isExpense ? 'despesa' : 'receita'}</Text>
-            <View style={styles.valueInputWrapper}>
-              <Text style={[styles.currencySymbol, { color: activeColor }]}>R$</Text>
-              <TextInput
-                style={[styles.valueInput, { color: activeColor }]}
-                placeholder="0,00"
-                placeholderTextColor={theme.textMuted}
-                keyboardType="numeric"
-                value={value}
-                onChangeText={setValue}
-                maxLength={10}
-              />
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+            {/* --- SELETOR DE TIPO (Despesa / Receita) --- */}
+            <View style={styles.typeSelector}>
+              <TouchableOpacity
+                style={[styles.typeButton, isExpense && { backgroundColor: theme.danger }]}
+                onPress={() => {
+                  setTransactionType('expense');
+                  setSelectedCategory(expenseCategories[0].id);
+                }}
+              >
+                <Text style={[styles.typeText, isExpense && styles.typeTextActive]}>Despesa</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.typeButton, !isExpense && { backgroundColor: theme.success }]}
+                onPress={() => {
+                  setTransactionType('income');
+                  setSelectedCategory(incomeCategories[0].id);
+                }}
+              >
+                <Text style={[styles.typeText, !isExpense && styles.typeTextActive]}>Receita</Text>
+              </TouchableOpacity>
             </View>
-          </View>
 
-          {/* --- FORMULÁRIO BÁSICO --- */}
-          <View style={styles.formSection}>
-
-            {/* Nome / Descrição */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Descrição</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="pricetag-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+            {/* --- INPUT DE VALOR (Destacado) --- */}
+            <View style={styles.valueContainer}>
+              <Text style={styles.valueLabel}>Valor da {isExpense ? 'despesa' : 'receita'}</Text>
+              <View style={styles.valueInputWrapper}>
+                <Text style={[styles.currencySymbol, { color: activeColor }]}>R$</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Almoço de domingo"
+                  style={[styles.valueInput, { color: activeColor }]}
+                  placeholder="0,00"
                   placeholderTextColor={theme.textMuted}
-                  value={description}
-                  onChangeText={setDescription}
+                  keyboardType="numeric"
+                  value={value}
+                  onChangeText={setValue}
+                  maxLength={10}
                 />
               </View>
             </View>
 
-            {/* Data */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Data</Text>
-              <TouchableOpacity style={styles.inputContainer}>
-                <Ionicons name="calendar-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
-                <Text style={styles.inputText}>{date}</Text>
-                <Ionicons name="chevron-down" size={20} color={theme.textMuted} style={styles.dropdownIcon} />
-              </TouchableOpacity>
-            </View>
+            {/* --- FORMULÁRIO BÁSICO --- */}
+            <View style={styles.formSection}>
 
-            {/* Meio de Pagamento (Apenas para despesas) */}
-            {isExpense && (
+              {/* Nome / Descrição */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Meio de Pagamento</Text>
-                <View style={styles.pillsContainer}>
-                  <TouchableOpacity
-                    style={[styles.pill, paymentMethod === 'debit' && styles.pillActive]}
-                    onPress={() => setPaymentMethod('debit')}
-                  >
-                    <Text style={[styles.pillText, paymentMethod === 'debit' && styles.pillTextActive]}>Débito / Pix</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pill, paymentMethod === 'credit' && styles.pillActive]}
-                    onPress={() => setPaymentMethod('credit')}
-                  >
-                    <Text style={[styles.pillText, paymentMethod === 'credit' && styles.pillTextActive]}>Cartão de Crédito</Text>
-                  </TouchableOpacity>
+                <Text style={styles.label}>Descrição</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="pricetag-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Almoço de domingo"
+                    placeholderTextColor={theme.textMuted}
+                    value={description}
+                    onChangeText={setDescription}
+                  />
                 </View>
               </View>
-            )}
 
-            {/* Recorrência (Apenas para despesas) */}
-            {isExpense && (
+              {/* Data */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Recorrência</Text>
-                <View style={styles.pillsContainer}>
-                  <TouchableOpacity
-                    style={[styles.pill, recurrence === 'variable' && styles.pillActive]}
-                    onPress={() => setRecurrence('variable')}
-                  >
-                    <Text style={[styles.pillText, recurrence === 'variable' && styles.pillTextActive]}>Variável</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pill, recurrence === 'fixed' && styles.pillActive]}
-                    onPress={() => setRecurrence('fixed')}
-                  >
-                    <Text style={[styles.pillText, recurrence === 'fixed' && styles.pillTextActive]}>Fixa</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pill, recurrence === 'installment' && styles.pillActive]}
-                    onPress={() => setRecurrence('installment')}
-                  >
-                    <Text style={[styles.pillText, recurrence === 'installment' && styles.pillTextActive]}>Parcelada</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.label}>Data</Text>
+                <TouchableOpacity style={styles.inputContainer}>
+                  <Ionicons name="calendar-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                  <Text style={styles.inputText}>{date}</Text>
+                  <Ionicons name="chevron-down" size={20} color={theme.textMuted} style={styles.dropdownIcon} />
+                </TouchableOpacity>
               </View>
-            )}
 
-            {/* Categorias (Lista Horizontal) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Categoria</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
-                {currentCategories.map((cat) => {
-                  const isSelected = selectedCategory === cat.id;
-                  return (
+              {/* Meio de Pagamento (Apenas para despesas) */}
+              {isExpense && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Meio de Pagamento</Text>
+                  <View style={styles.pillsContainer}>
                     <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        styles.categoryCard,
-                        isSelected && { backgroundColor: activeColor, borderColor: activeColor }
-                      ]}
-                      onPress={() => setSelectedCategory(cat.id)}
+                      style={[styles.pill, paymentMethod === 'debit' && styles.pillActive]}
+                      onPress={() => setPaymentMethod('debit')}
                     >
-                      <Ionicons
-                        name={cat.icon as any}
-                        size={24}
-                        color={isSelected ? '#FFF' : theme.textMuted}
-                        style={styles.categoryIcon}
-                      />
-                      <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
-                        {cat.name}
-                      </Text>
+                      <Text style={[styles.pillText, paymentMethod === 'debit' && styles.pillTextActive]}>Débito / Pix</Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                    <TouchableOpacity
+                      style={[styles.pill, paymentMethod === 'credit' && styles.pillActive]}
+                      onPress={() => setPaymentMethod('credit')}
+                    >
+                      <Text style={[styles.pillText, paymentMethod === 'credit' && styles.pillTextActive]}>Cartão de Crédito</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Recorrência (Apenas para despesas) */}
+              {isExpense && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Recorrência</Text>
+                  <View style={styles.pillsContainer}>
+                    <TouchableOpacity
+                      style={[styles.pill, recurrence === 'variable' && styles.pillActive]}
+                      onPress={() => setRecurrence('variable')}
+                    >
+                      <Text style={[styles.pillText, recurrence === 'variable' && styles.pillTextActive]}>Variável</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pill, recurrence === 'fixed' && styles.pillActive]}
+                      onPress={() => setRecurrence('fixed')}
+                    >
+                      <Text style={[styles.pillText, recurrence === 'fixed' && styles.pillTextActive]}>Fixa</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.pill, recurrence === 'installment' && styles.pillActive]}
+                      onPress={() => setRecurrence('installment')}
+                    >
+                      <Text style={[styles.pillText, recurrence === 'installment' && styles.pillTextActive]}>Parcelada</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Categorias (Lista Horizontal) */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Categoria</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryScroll}
+                >
+                  {currentCategories.map((cat) => {
+                    const isSelected = selectedCategory === cat.id;
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.categoryCard,
+                          isSelected && { backgroundColor: activeColor, borderColor: activeColor }
+                        ]}
+                        onPress={() => setSelectedCategory(cat.id)}
+                      >
+                        <Ionicons
+                          name={cat.icon as any}
+                          size={24}
+                          color={isSelected ? '#FFF' : theme.textMuted}
+                          style={styles.categoryIcon}
+                        />
+                        <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
+                          {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
             </View>
 
+          </ScrollView>
+
+          {/* --- BOTÃO SALVAR --- */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: activeColor }]}
+              activeOpacity={0.8}
+              onPress={handleSave} // Adicionada a função aqui
+            >
+              <Text style={styles.saveButtonText}>{editId ? 'Salvar Alterações' : `Salvar ${isExpense ? 'Despesa' : 'Receita'}`}</Text>
+            </TouchableOpacity>
           </View>
 
-        </ScrollView>
-
-        {/* --- BOTÃO SALVAR --- */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: activeColor }]}
-            activeOpacity={0.8}
-            onPress={handleSave} // Adicionada a função aqui
-          >
-            <Text style={styles.saveButtonText}>{editId ? 'Salvar Alterações' : `Salvar ${isExpense ? 'Despesa' : 'Receita'}`}</Text>
-          </TouchableOpacity>
-        </View>
-
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
@@ -342,6 +350,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
   },
   keyboardView: {
     flex: 1,

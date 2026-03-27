@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +21,8 @@ const theme = {
   border: '#333333',
   danger: '#F44336',
 };
+
+const MAX_WIDTH = 600; // Largura máxima para desktop
 
 // --- COMPONENTES ---
 
@@ -46,6 +49,9 @@ const MenuItem = ({ icon, title, subtitle, onPress, color = theme.text, iconType
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   const menuSections = [
     {
@@ -75,49 +81,51 @@ export default function MoreScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header />
+      <View style={styles.centeredWrapper}>
+        <Header />
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Card do Perfil Rápido */}
-        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/login')}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={32} color={theme.text} />
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.userName}>Carol Silva</Text>
-            <Text style={styles.userEmail}>carol@exemplo.com</Text>
-          </View>
-          <View style={styles.editBadge}>
-            <Text style={styles.editBadgeText}>Editar</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Seções do Menu */}
-        {menuSections.map((section, idx) => (
-          <View key={idx} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.menuContainer}>
-              {section.items.map((item, itemIdx) => (
-                <View key={item.id}>
-                  <MenuItem {...item} />
-                  {itemIdx < section.items.length - 1 && <View style={styles.divider} />}
-                </View>
-              ))}
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Card do Perfil Rápido */}
+          <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/login')}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={32} color={theme.text} />
             </View>
-          </View>
-        ))}
+            <View style={styles.profileInfo}>
+              <Text style={styles.userName}>Carol Silva</Text>
+              <Text style={styles.userEmail}>carol@exemplo.com</Text>
+            </View>
+            <View style={styles.editBadge}>
+              <Text style={styles.editBadgeText}>Editar</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* Botão Sair */}
-        <TouchableOpacity style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={22} color={theme.danger} />
-          <Text style={styles.logoutText}>Sair da Conta</Text>
-        </TouchableOpacity>
+          {/* Seções do Menu */}
+          {menuSections.map((section, idx) => (
+            <View key={idx} style={styles.section}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.menuContainer}>
+                {section.items.map((item, itemIdx) => (
+                  <View key={item.id}>
+                    <MenuItem {...item} />
+                    {itemIdx < section.items.length - 1 && <View style={styles.divider} />}
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))}
 
-        <Text style={styles.versionText}>Versão 1.0.0 (Build 26)</Text>
-      </ScrollView>
+          {/* Botão Sair */}
+          <TouchableOpacity style={styles.logoutButton}>
+            <Ionicons name="log-out-outline" size={22} color={theme.danger} />
+            <Text style={styles.logoutText}>Sair da Conta</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.versionText}>Versão 1.0.0 (Build 26)</Text>
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -126,6 +134,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
   },
   header: {
     paddingHorizontal: 24,

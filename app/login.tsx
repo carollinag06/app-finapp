@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,93 +23,100 @@ const theme = {
   danger: '#F44336',
 };
 
+const MAX_WIDTH = 600; // Largura máxima para desktop
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* Comportamento para o teclado não cobrir os inputs */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
+      <View style={styles.centeredWrapper}>
+        {/* Comportamento para o teclado não cobrir os inputs */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
 
-        {/* --- HEADER / LOGO --- */}
-        <View style={styles.headerContainer}>
-          <View style={styles.logoCircle}>
-            <MaterialCommunityIcons name="finance" size={40} color={theme.text} />
-          </View>
-          <Text style={styles.title}>Bem-vindo de volta!</Text>
-          <Text style={styles.subtitle}>Faça login para gerenciar suas finanças</Text>
-        </View>
-
-        {/* --- FORMULÁRIO --- */}
-        <View style={styles.formContainer}>
-
-          {/* Input de E-mail */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="exemplo@email.com"
-                placeholderTextColor={theme.textMuted}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
+          {/* --- HEADER / LOGO --- */}
+          <View style={styles.headerContainer}>
+            <View style={styles.logoCircle}>
+              <MaterialCommunityIcons name="finance" size={40} color={theme.text} />
             </View>
+            <Text style={styles.title}>Bem-vindo de volta!</Text>
+            <Text style={styles.subtitle}>Faça login para gerenciar suas finanças</Text>
           </View>
 
-          {/* Input de Senha */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Senha</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Sua senha secreta"
-                placeholderTextColor={theme.textMuted}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
-                  size={20}
-                  color={theme.textMuted}
+          {/* --- FORMULÁRIO --- */}
+          <View style={styles.formContainer}>
+
+            {/* Input de E-mail */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>E-mail</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="exemplo@email.com"
+                  placeholderTextColor={theme.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
                 />
-              </TouchableOpacity>
+              </View>
             </View>
+
+            {/* Input de Senha */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Senha</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Sua senha secreta"
+                  placeholderTextColor={theme.textMuted}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={theme.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Esqueceu a senha */}
+            <TouchableOpacity style={styles.forgotPasswordButton}>
+              <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+            </TouchableOpacity>
+
+            {/* Botão Entrar */}
+            <TouchableOpacity style={styles.loginButton} activeOpacity={0.8}>
+              <Text style={styles.loginButtonText}>Entrar</Text>
+            </TouchableOpacity>
+
           </View>
 
-          {/* Esqueceu a senha */}
-          <TouchableOpacity style={styles.forgotPasswordButton}>
-            <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
-          </TouchableOpacity>
+          {/* --- RODAPÉ / CADASTRAR --- */}
+          <View style={styles.footerContainer}>
+            <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
+            <TouchableOpacity>
+              <Text style={styles.registerText}>Cadastre-se</Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Botão Entrar */}
-          <TouchableOpacity style={styles.loginButton} activeOpacity={0.8}>
-            <Text style={styles.loginButtonText}>Entrar</Text>
-          </TouchableOpacity>
-
-        </View>
-
-        {/* --- RODAPÉ / CADASTRAR --- */}
-        <View style={styles.footerContainer}>
-          <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
-          <TouchableOpacity>
-            <Text style={styles.registerText}>Cadastre-se</Text>
-          </TouchableOpacity>
-        </View>
-
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }
@@ -118,6 +126,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
   },
   keyboardView: {
     flex: 1,
