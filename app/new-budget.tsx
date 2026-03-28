@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -24,6 +24,7 @@ const theme = {
   primary: '#8A2BE2',
   primaryLight: 'rgba(138, 43, 226, 0.15)',
   border: '#2C2C2E',
+  danger: '#FF453A',
 };
 
 const expenseCategories = [
@@ -40,9 +41,10 @@ export default function NewBudgetScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
-  
+  const inputRef = useRef<TextInput>(null);
+
   const [category, setCategory] = useState(expenseCategories[0].name);
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // Raw numbers string
   const [icon, setIcon] = useState(expenseCategories[0].icon);
   const [color, setColor] = useState(expenseCategories[0].color);
 
@@ -51,12 +53,21 @@ export default function NewBudgetScreen() {
   const updateBudget = useBudgetStore((state) => state.updateBudget);
   const deleteBudget = useBudgetStore((state) => state.deleteBudget);
 
+  const displayValue = useMemo(() => {
+    if (!amount) return '0,00';
+    const numberValue = Number(amount) / 100;
+    return numberValue.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, [amount]);
+
   useEffect(() => {
     if (editId) {
       const b = budgets.find(b => b.id === editId);
       if (b) {
         setCategory(b.category);
-        setAmount(b.amount.toString());
+        setAmount((b.amount * 100).toFixed(0));
         setIcon(b.icon || 'wallet-outline');
         setColor(b.color || theme.primary);
       }
@@ -64,8 +75,8 @@ export default function NewBudgetScreen() {
   }, [editId, budgets]);
 
   const handleSave = () => {
-    const numericAmount = parseFloat(amount.replace(/\D/g, '')) / 100;
-    
+    const numericAmount = Number(amount) / 100;
+
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert("Aviso", "Por favor, digite um valor válido.");
       return;
@@ -81,21 +92,22 @@ export default function NewBudgetScreen() {
 
   const formatValue = (text: string) => {
     const cleanValue = text.replace(/\D/g, '');
-    if (!cleanValue) {
+    if (!cleanValue || cleanValue === '0') {
       setAmount('');
       return;
     }
-    const val = parseInt(cleanValue) / 100;
-    setAmount(val.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+    setAmount(cleanValue);
   };
 
   const handleDelete = () => {
     Alert.alert("Excluir Meta", "Deseja realmente excluir esta meta?", [
       { text: "Cancelar", style: "cancel" },
-      { text: "Excluir", style: "destructive", onPress: () => {
-        deleteBudget(editId);
-        router.back();
-      }}
+      {
+        text: "Excluir", style: "destructive", onPress: () => {
+          deleteBudget(editId);
+          router.back();
+        }
+      }
     ]);
   };
 
@@ -115,20 +127,34 @@ export default function NewBudgetScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.valueContainer}>
+          <TouchableOpacity
+            style={styles.valueContainer}
+            onPress={() => inputRef.current?.focus()}
+            activeOpacity={1}
+          >
             <Text style={styles.valueLabel}>Valor do Orçamento Mensal</Text>
             <View style={styles.valueInputWrapper}>
               <Text style={[styles.currencySymbol, { color: theme.primary }]}>R$</Text>
+              <Text style={[styles.displayValueText, { color: theme.primary }]}>
+                {displayValue}
+              </Text>
+            </View>
+            <View style={styles.hiddenInputWrapper}>
               <TextInput
-                style={[styles.valueInput, { color: theme.primary }]}
-                placeholder="0,00"
-                placeholderTextColor={theme.textMuted}
-                keyboardType="numeric"
+                ref={inputRef}
+                style={styles.hiddenInput}
+                keyboardType="number-pad"
                 value={amount}
                 onChangeText={formatValue}
+                maxLength={11}
+                autoFocus={!editId}
+                placeholder="0"
+                placeholderTextColor="transparent"
+                caretHidden={true}
               />
+              <Text style={styles.helperText}>Toque para digitar o valor</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.section}>
             <Text style={styles.label}>Selecione a Categoria</Text>
@@ -148,10 +174,10 @@ export default function NewBudgetScreen() {
                       setColor(cat.color);
                     }}
                   >
-                    <Ionicons 
-                      name={cat.icon as any} 
-                      size={24} 
-                      color={isSelected ? cat.color : theme.textMuted} 
+                    <Ionicons
+                      name={cat.icon as any}
+                      size={24}
+                      color={isSelected ? cat.color : theme.textMuted}
                     />
                     <Text style={[styles.categoryText, isSelected && { color: cat.color }]}>
                       {cat.name}
@@ -225,20 +251,36 @@ const styles = StyleSheet.create({
   },
   valueInputWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
   },
   currencySymbol: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     marginRight: 8,
+    opacity: 0.8,
   },
-  valueInput: {
-    fontSize: 44,
+  displayValueText: {
+    fontSize: 54,
     fontWeight: 'bold',
-    minWidth: 160,
-    textAlign: 'center',
     letterSpacing: -1,
+  },
+  hiddenInputWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  helperText: {
+    color: theme.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
   },
   section: {
     marginBottom: 24,

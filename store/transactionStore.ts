@@ -18,6 +18,7 @@ export interface Transaction {
 interface TransactionStore {
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id'>) => void;
+  updateTransaction: (id: string, transaction: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
 }
 
@@ -35,6 +36,11 @@ export const useTransactionStore = create<TransactionStore>()(
           { ...newTransaction, id: Math.random().toString(36).substring(2, 9) },
           ...state.transactions
         ]
+      })),
+
+      // Função para atualizar uma transação
+      updateTransaction: (id, updatedTransaction) => set((state) => ({
+        transactions: state.transactions.map((t) => t.id === id ? { ...t, ...updatedTransaction } : t)
       })),
 
       // Função para deletar uma transação

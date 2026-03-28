@@ -1,4 +1,5 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
@@ -12,6 +13,7 @@ import {
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTransactionStore } from '../../store/transactionStore';
+import { useBudgetStore } from '../../store/budgetStore';
 
 // --- DIMENSÕES E TEMA ---
 const screenWidth = Dimensions.get('window').width;
@@ -183,12 +185,16 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
+  const budgets = useBudgetStore((state) => state.budgets);
 
   // Transações filtradas por mês/ano
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const [day, month, year] = t.date.split('/').map(Number);
-      return (month - 1) === currentMonth && year === currentYear;
+      const transactionDate = t.date.includes('/')
+        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+        : new Date(t.date);
+
+      return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
     });
   }, [transactions, currentMonth, currentYear]);
 
@@ -201,8 +207,11 @@ export default function AnalyticsScreen() {
       py = currentYear - 1;
     }
     return transactions.filter(t => {
-      const [day, month, year] = t.date.split('/').map(Number);
-      return (month - 1) === pm && year === py;
+      const transactionDate = t.date.includes('/')
+        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+        : new Date(t.date);
+
+      return transactionDate.getMonth() === pm && transactionDate.getFullYear() === py;
     });
   }, [transactions, currentMonth, currentYear]);
 
@@ -215,7 +224,8 @@ export default function AnalyticsScreen() {
   const currentMonthStats = useMemo(() => {
     const income = monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0);
     const expense = monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0);
-    return { income, expense, balance: income - expense };
+    const pending = monthlyTransactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc, t) => acc + t.value, 0);
+    return { income, expense, pending, balance: income - expense };
   }, [monthlyTransactions]);
 
   const getComparison = (current: number, prev: number) => {
@@ -273,7 +283,10 @@ export default function AnalyticsScreen() {
       const balanceData = new Array(dataPointsCount).fill(0);
 
       monthlyTransactions.forEach(t => {
-        const [day] = t.date.split('/').map(Number);
+        const transactionDate = t.date.includes('/')
+          ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+          : new Date(t.date);
+        const day = transactionDate.getDate();
         const idx = getIdx(day);
         if (idx < dataPointsCount) {
           if (t.type === 'income') incomeData[idx] += t.value;
@@ -300,7 +313,10 @@ export default function AnalyticsScreen() {
 
     const data = new Array(dataPointsCount).fill(0);
     filteredTransactions.forEach(t => {
-      const [day] = t.date.split('/').map(Number);
+      const transactionDate = t.date.includes('/')
+        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+        : new Date(t.date);
+      const day = transactionDate.getDate();
       const idx = getIdx(day);
       if (idx < dataPointsCount) data[idx] += t.value;
     });
@@ -532,6 +548,23 @@ export default function AnalyticsScreen() {
                   </View>
                 </View>
 
+                {/* NOVO: Card de Fatura Pendente se houver */}
+                {currentMonthStats.pending > 0 && (
+                  <View style={[styles.card, { paddingVertical: 16, backgroundColor: 'rgba(255, 214, 10, 0.05)', borderColor: 'rgba(255, 214, 10, 0.2)' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[styles.summaryIconBg, { backgroundColor: 'rgba(255, 214, 10, 0.1)', marginBottom: 0 }]}>
+                        <Ionicons name="card-outline" size={20} color={theme.warning} />
+                      </View>
+                      <View>
+                        <Text style={[styles.summaryLabel, { marginBottom: 2 }]}>Fatura de Cartão (Pendente)</Text>
+                        <Text style={[styles.summaryValue, { fontSize: 20, marginBottom: 0, color: theme.warning }]}>
+                          R$ {currentMonthStats.pending.toLocaleString('pt-BR')}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {/* CARD 3 GERAL: Comparativo Donut */}
                 <ChartCard title="Distribuição de Caixa" subtitle="Receitas vs Despesas">
                   <DonutChart
@@ -557,6 +590,23 @@ export default function AnalyticsScreen() {
                   ))}
                 </ChartCard>
 
+                {/* NOVO: Fatura Pendente na aba de despesas */}
+                {activeTab === 'despesas' && currentMonthStats.pending > 0 && (
+                  <View style={[styles.card, { paddingVertical: 16, backgroundColor: 'rgba(255, 214, 10, 0.05)', borderColor: 'rgba(255, 214, 10, 0.2)' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[styles.summaryIconBg, { backgroundColor: 'rgba(255, 214, 10, 0.1)', marginBottom: 0 }]}>
+                        <Ionicons name="card-outline" size={20} color={theme.warning} />
+                      </View>
+                      <View>
+                        <Text style={[styles.summaryLabel, { marginBottom: 2 }]}>Deste total, pendente no Cartão</Text>
+                        <Text style={[styles.summaryValue, { fontSize: 20, marginBottom: 0, color: theme.warning }]}>
+                          R$ {currentMonthStats.pending.toLocaleString('pt-BR')}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {/* CARD 3: Por categoria (Donut) */}
                 <ChartCard title="Divisão Proporcional" subtitle="Participação de cada categoria">
                   <DonutChart
@@ -574,6 +624,33 @@ export default function AnalyticsScreen() {
                       centerText={`${recorrenciaData.length > 0 ? '100%' : '0%'}`}
                       centerSubtext="Total"
                     />
+                  </ChartCard>
+                )}
+
+                {/* NOVO: Resumo de Metas/Budgets na aba de despesas */}
+                {activeTab === 'despesas' && budgets.length > 0 && (
+                  <ChartCard title="Controle de Metas" subtitle="Consumo do orçamento mensal">
+                    {budgets.slice(0, 3).map((b, idx) => {
+                      const spent = rankingData.find(r => r.name === b.category)?.value || 0;
+                      const percent = Math.min((spent / b.amount) * 100, 100);
+                      return (
+                        <View key={idx} style={{ marginBottom: 16 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>{b.category}</Text>
+                            <Text style={{ color: theme.textMuted, fontSize: 12 }}>R$ {spent.toLocaleString('pt-BR')} / {b.amount.toLocaleString('pt-BR')}</Text>
+                          </View>
+                          <View style={{ height: 6, backgroundColor: theme.border, borderRadius: 3, overflow: 'hidden' }}>
+                            <View style={{ height: '100%', width: `${percent}%`, backgroundColor: percent > 90 ? theme.danger : b.color || theme.primary }} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity
+                      style={{ marginTop: 8, alignItems: 'center' }}
+                      onPress={() => router.push('/budget')}
+                    >
+                      <Text style={{ color: theme.primary, fontSize: 13, fontWeight: 'bold' }}>Ver todas as metas</Text>
+                    </TouchableOpacity>
                   </ChartCard>
                 )}
               </>

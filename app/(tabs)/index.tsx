@@ -70,10 +70,7 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: n
         <Text style={styles.welcomeText}>Sua saúde financeira está ótima!</Text>
       </View>
       <View style={styles.headerIconsRow}>
-        <TouchableOpacity style={styles.iconCircleHeader} onPress={() => router.push('/mais')}>
-          <Ionicons name="notifications-outline" size={22} color={theme.text} />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
+
         <TouchableOpacity style={styles.iconCircleHeader} onPress={() => router.push('/login')}>
           <Ionicons name="person-outline" size={22} color={theme.text} />
         </TouchableOpacity>
@@ -105,7 +102,7 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: n
   </View>
 );
 
-const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, totalOrcado }: any) => {
+const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valorPendente, totalOrcado }: any) => {
   const percent = totalOrcado > 0 ? Math.min((despesas / totalOrcado) * 100, 100) : 0;
 
   return (
@@ -120,6 +117,15 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, total
       <Text style={styles.mainCardValue}>
         {mostrarSaldo ? `R$ ${saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••••'}
       </Text>
+
+      {valorPendente > 0 && (
+        <View style={styles.pendingContainer}>
+          <Ionicons name="card-outline" size={14} color={theme.warning} />
+          <Text style={styles.pendingText}>
+            Fatura Pendente: <Text style={{ fontWeight: 'bold' }}>R$ {valorPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+          </Text>
+        </View>
+      )}
 
       <View style={styles.progressContainer}>
         <View style={styles.progressLabelRow}>
@@ -216,7 +222,12 @@ const TransacoesRecentes = ({ transactions }: { transactions: any[] }) => (
           const isIncome = t.type === 'income';
 
           return (
-            <TouchableOpacity key={t.id} style={styles.transactionItem}>
+            <TouchableOpacity
+              key={t.id}
+              style={styles.transactionItem}
+              onPress={() => router.push({ pathname: '/new-transaction', params: { id: t.id } })}
+              activeOpacity={0.7}
+            >
               <View style={[styles.transactionIconBg, { backgroundColor: isIncome ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 82, 82, 0.1)' }]}>
                 <Ionicons
                   name={icon}
@@ -277,8 +288,11 @@ export default function Dashboard() {
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const [day, month, year] = t.date.split('/').map(Number);
-      return (month - 1) === currentMonth && year === currentYear;
+      const transactionDate = t.date.includes('/')
+        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+        : new Date(t.date);
+
+      return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
     });
   }, [transactions, currentMonth, currentYear]);
 
@@ -290,11 +304,17 @@ export default function Dashboard() {
     monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)
     , [monthlyTransactions]);
 
+  const valorPendente = useMemo(() =>
+    monthlyTransactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc, t) => acc + t.value, 0)
+    , [monthlyTransactions]);
+
   const totalOrcado = useMemo(() =>
     budgets.reduce((acc, b) => acc + b.amount, 0)
     , [budgets]);
 
-  const saldoAtual = receitasTotais - despesasTotais;
+  const saldoAtual = receitasTotais - (despesasTotais - valorPendente); // Saldo disponível (descontando o que já foi pago)
+  // Ou talvez o usuário queira o saldo real:
+  const saldoReal = receitasTotais - despesasTotais;
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -334,6 +354,7 @@ export default function Dashboard() {
             saldo={saldoAtual}
             receitas={receitasTotais}
             despesas={despesasTotais}
+            valorPendente={valorPendente}
             totalOrcado={totalOrcado}
           />
 
@@ -483,6 +504,21 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: 'bold',
     letterSpacing: -0.5,
+  },
+  pendingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 64, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  pendingText: {
+    color: theme.warning,
+    fontSize: 12,
   },
   progressContainer: {
     marginTop: 24,

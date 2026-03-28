@@ -2,6 +2,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -107,9 +108,12 @@ export default function MoreScreen() {
             <View key={idx} style={styles.section}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <View style={styles.menuContainer}>
-                {section.items.map((item, itemIdx) => (
+                {section.items.map((item: any, itemIdx) => (
                   <View key={item.id}>
-                    <MenuItem {...item} />
+                    <MenuItem
+                      {...item}
+                      onPress={item.onPress ? item.onPress : () => Alert.alert("Em breve", `A funcionalidade ${item.title} estará disponível em breve.`)}
+                    />
                     {itemIdx < section.items.length - 1 && <View style={styles.divider} />}
                   </View>
                 ))}
@@ -118,7 +122,10 @@ export default function MoreScreen() {
           ))}
 
           {/* Botão Sair */}
-          <TouchableOpacity style={styles.logoutButton}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => router.replace('/login')}
+          >
             <Ionicons name="log-out-outline" size={22} color={theme.danger} />
             <Text style={styles.logoutText}>Sair da Conta</Text>
           </TouchableOpacity>

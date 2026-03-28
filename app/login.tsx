@@ -1,6 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -96,12 +98,19 @@ export default function LoginScreen() {
             </View>
 
             {/* Esqueceu a senha */}
-            <TouchableOpacity style={styles.forgotPasswordButton}>
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={() => Alert.alert("Recuperar Senha", "Um e-mail de recuperação foi enviado para o seu endereço.")}
+            >
               <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
             </TouchableOpacity>
 
             {/* Botão Entrar */}
-            <TouchableOpacity style={styles.loginButton} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.loginButton}
+              activeOpacity={0.8}
+              onPress={() => router.replace('/(tabs)')}
+            >
               <Text style={styles.loginButtonText}>Entrar</Text>
             </TouchableOpacity>
 
@@ -110,7 +119,7 @@ export default function LoginScreen() {
           {/* --- RODAPÉ / CADASTRAR --- */}
           <View style={styles.footerContainer}>
             <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/cadastro')}>
               <Text style={styles.registerText}>Cadastre-se</Text>
             </TouchableOpacity>
           </View>

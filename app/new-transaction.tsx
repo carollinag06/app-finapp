@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router'; // Para fechar a tela
-import React, { useEffect, useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -54,37 +55,95 @@ const incomeCategories = [
   { id: '9', name: 'Presente', icon: 'gift-outline', color: '#FFD60A' },
 ];
 
+// --- COMPONENTES MEMOIZADOS PARA PERFORMANCE ---
+// React.memo evita re-renders se as props não mudarem
+
+const CategoryItem = memo(({ cat, isSelected, onPress }: any) => {
+  const catColor = cat.color || theme.textMuted;
+  return (
+    <TouchableOpacity
+      style={[
+        styles.categoryCard,
+        isSelected && { backgroundColor: `${catColor}20`, borderColor: catColor }
+      ]}
+      onPress={() => onPress(cat.id)}
+    >
+      <Ionicons
+        name={cat.icon as any}
+        size={28}
+        color={isSelected ? catColor : theme.textMuted}
+        style={styles.categoryIcon}
+      />
+      <Text style={[styles.categoryText, isSelected && { color: catColor }]}>
+        {cat.name}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const PillButton = memo(({ label, isActive, onPress }: any) => (
+  <TouchableOpacity
+    style={[styles.pill, isActive && styles.pillActive]}
+    onPress={onPress}
+  >
+    <Text style={[styles.pillText, isActive && styles.pillTextActive]}>{label}</Text>
+  </TouchableOpacity>
+));
+
 export default function NewTransactionScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const inputRef = useRef<TextInput>(null);
 
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
-
-  // Estados do formulário
+  // --- ESTADOS DO FORMULÁRIO ---
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [value, setValue] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toLocaleDateString('pt-BR'));
+  const [date, setDate] = useState(new Date().toISOString());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('1');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix'>('debit');
   const [recurrence, setRecurrence] = useState<'fixed' | 'variable' | 'installment'>('variable');
 
-  // Puxa as funções do Zustand
+  // --- OTIMIZAÇÃO ZUSTAND ---
+  // Seletores específicos evitam re-renders quando outras partes do store mudam
   const transactions = useTransactionStore((state) => state.transactions);
   const addTransaction = useTransactionStore((state) => state.addTransaction);
+  const updateTransaction = useTransactionStore((state) => state.updateTransaction);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
 
-  // Carrega os dados se for edição
+  // --- CÁLCULOS MEMOIZADOS (useMemo) ---
+  // Recalcula apenas quando transactionType mudar
+  const isExpense = useMemo(() => transactionType === 'expense', [transactionType]);
+  const activeColor = useMemo(() => isExpense ? theme.danger : theme.success, [isExpense]);
+  const currentCategories = useMemo(() => isExpense ? expenseCategories : incomeCategories, [isExpense]);
+
+  // Estilos dinâmicos memoizados
+  const containerStyle = useMemo(() => [
+    styles.container,
+    { paddingTop: insets.top, paddingBottom: insets.bottom }
+  ], [insets.top, insets.bottom]);
+
+  // --- CARREGAR DADOS PARA EDIÇÃO ---
   useEffect(() => {
     if (editId) {
       const t = transactions.find(t => t.id === editId);
       if (t) {
         setTransactionType(t.type);
-        setValue(t.value.toString().replace('.', ','));
+        // Converte o valor numérico (ex: 15.5) para string de centavos (ex: "1550")
+        setValue((t.value * 100).toFixed(0));
         setDescription(t.description);
-        setDate(t.date);
+
+        // Se a data já estiver em ISO, usamos direto. Se for o formato antigo DD/MM/YYYY, convertemos.
+        let dateValue = t.date;
+        if (t.date.includes('/')) {
+          const [d, m, y] = t.date.split('/').map(Number);
+          dateValue = new Date(y, m - 1, d).toISOString();
+        }
+        setDate(dateValue);
+
         setPaymentMethod(t.paymentMethod || 'debit');
         setRecurrence(t.recurrence || 'variable');
 
@@ -95,70 +154,76 @@ export default function NewTransactionScreen() {
     }
   }, [editId, transactions]);
 
-  // Define as cores e categorias baseadas no tipo selecionado
-  const isExpense = transactionType === 'expense';
-  const activeColor = isExpense ? theme.danger : theme.success;
-  const currentCategories = isExpense ? expenseCategories : incomeCategories;
+  // --- HANDLERS MEMOIZADOS (useCallback) ---
+  // useCallback evita que a função seja recriada em cada render
 
-  // --- FUNÇÃO PARA SALVAR ---
-  const handleSave = () => {
-    // 1. Validação básica
-    if (!value || !description) {
-      Alert.alert("Aviso", "Por favor, preencha o valor e a descrição da transação.");
+  // Formata o valor apenas para exibição, mantendo o input limpo
+  const displayValue = useMemo(() => {
+    if (!value) return '0,00';
+    const numberValue = Number(value) / 100;
+    return numberValue.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }, [value]);
+
+  const formatValue = useCallback((text: string) => {
+    // Pegamos apenas os números
+    const cleanText = text.replace(/\D/g, '');
+
+    if (!cleanText || cleanText === '0') {
+      setValue('');
       return;
     }
 
-    // 2. Converte "50,00" para 50.00 para podermos fazer contas matemáticas
-    const numericValue = parseFloat(value.replace('.', '').replace(',', '.'));
+    setValue(cleanText);
+  }, []);
+
+  const onDateChange = useCallback((event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setDate(selectedDate.toISOString());
+    }
+  }, []);
+
+  const handleSave = useCallback(() => {
+    if (!value) {
+      Alert.alert("Aviso", "Por favor, preencha o valor da transação.");
+      return;
+    }
+
+    // O valor agora é armazenado como centavos inteiros (ex: "1500")
+    const numericValue = Number(value) / 100;
 
     if (isNaN(numericValue) || numericValue <= 0) {
       Alert.alert("Aviso", "Por favor, digite um valor válido maior que zero.");
       return;
     }
 
-    // 3. Pega o nome da categoria baseada no ID selecionado
     const selectedCat = currentCategories.find(c => c.id === selectedCategory);
     const categoryName = selectedCat?.name || 'Outros';
+    const finalDescription = description.trim() || categoryName;
 
-    // 4. Se for edição, remove a antiga antes de adicionar a nova
-    if (editId) {
-      deleteTransaction(editId);
-    }
-
-    // 5. Salva no nosso Store (Zustand)
-    addTransaction({
-      description,
+    const transactionData = {
+      description: finalDescription,
       value: numericValue,
       type: transactionType,
       category: categoryName,
       date,
       paymentMethod,
       recurrence,
-    });
+    };
 
-    // 6. Fecha o Modal e volta pra tela inicial
-    router.back();
-  };
-
-  // Formata o valor conforme o usuário digita
-  const formatValue = (text: string) => {
-    // Remove tudo que não é número
-    const cleanValue = text.replace(/\D/g, '');
-    if (!cleanValue) {
-      setValue('');
-      return;
+    if (editId) {
+      updateTransaction(editId, transactionData);
+    } else {
+      addTransaction(transactionData);
     }
 
-    // Converte para centavos
-    const amount = parseInt(cleanValue) / 100;
-    const formatted = amount.toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    setValue(formatted);
-  };
+    router.back();
+  }, [value, description, transactionType, selectedCategory, date, paymentMethod, recurrence, currentCategories, editId, updateTransaction, addTransaction]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Alert.alert(
       "Excluir Transação",
       "Deseja realmente excluir esta transação?",
@@ -172,10 +237,15 @@ export default function NewTransactionScreen() {
         }
       ]
     );
-  };
+  }, [editId, deleteTransaction]);
+
+  const handleTypeChange = useCallback((type: 'expense' | 'income') => {
+    setTransactionType(type);
+    setSelectedCategory(type === 'expense' ? expenseCategories[0].id : incomeCategories[0].id);
+  }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={containerStyle}>
       <View style={styles.centeredWrapper}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -203,53 +273,63 @@ export default function NewTransactionScreen() {
             <View style={styles.typeSelector}>
               <TouchableOpacity
                 style={[styles.typeButton, isExpense && { backgroundColor: theme.danger }]}
-                onPress={() => {
-                  setTransactionType('expense');
-                  setSelectedCategory(expenseCategories[0].id);
-                }}
+                onPress={() => handleTypeChange('expense')}
               >
                 <Text style={[styles.typeText, isExpense && styles.typeTextActive]}>Despesa</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.typeButton, !isExpense && { backgroundColor: theme.success }]}
-                onPress={() => {
-                  setTransactionType('income');
-                  setSelectedCategory(incomeCategories[0].id);
-                }}
+                onPress={() => handleTypeChange('income')}
               >
                 <Text style={[styles.typeText, !isExpense && styles.typeTextActive]}>Receita</Text>
               </TouchableOpacity>
             </View>
 
             {/* --- INPUT DE VALOR (Destacado) --- */}
-            <View style={styles.valueContainer}>
+            <TouchableOpacity
+              style={styles.valueContainer}
+              onPress={() => inputRef.current?.focus()}
+              activeOpacity={1}
+            >
               <Text style={styles.valueLabel}>Valor da {isExpense ? 'despesa' : 'receita'}</Text>
-              <View style={styles.valueInputWrapper}>
+
+              <View style={styles.valueDisplayRow}>
                 <Text style={[styles.currencySymbol, { color: activeColor }]}>R$</Text>
+                <Text style={[styles.displayValueText, { color: activeColor }]}>
+                  {displayValue}
+                </Text>
+              </View>
+
+              <View style={styles.valueInputWrapper}>
                 <TextInput
-                  style={[styles.valueInput, { color: activeColor }]}
-                  placeholder="0,00"
-                  placeholderTextColor={theme.textMuted}
-                  keyboardType="numeric"
+                  ref={inputRef}
+                  style={styles.hiddenInput}
+                  keyboardType="number-pad"
                   value={value}
                   onChangeText={formatValue}
-                  maxLength={13}
+                  maxLength={11}
+                  autoFocus={!editId}
+                  placeholder="0"
+                  placeholderTextColor="transparent"
+                  selectionColor={activeColor}
+                  caretHidden={true}
                 />
+                <Text style={styles.helperText}>Toque para digitar o valor</Text>
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* --- FORMULÁRIO BÁSICO --- */}
             <View style={styles.formSection}>
 
               {/* Nome / Descrição */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Descrição</Text>
+                <Text style={styles.label}>Descrição (Opcional)</Text>
                 <View style={styles.inputContainer}>
                   <Ionicons name="pricetag-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Ex: Almoço de domingo"
+                    placeholder={`Ex: ${currentCategories.find(c => c.id === selectedCategory)?.name || 'Gasto'}`}
                     placeholderTextColor={theme.textMuted}
                     value={description}
                     onChangeText={setDescription}
@@ -260,11 +340,37 @@ export default function NewTransactionScreen() {
               {/* Data */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Data</Text>
-                <TouchableOpacity style={styles.inputContainer}>
+                <TouchableOpacity
+                  style={styles.inputContainer}
+                  onPress={() => setShowDatePicker(true)}
+                >
                   <Ionicons name="calendar-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
-                  <Text style={styles.inputText}>{date}</Text>
+                  <Text style={styles.inputText}>
+                    {new Date(date).toLocaleDateString('pt-BR')}
+                  </Text>
                   <Ionicons name="chevron-down" size={20} color={theme.textMuted} style={styles.dropdownIcon} />
                 </TouchableOpacity>
+
+                {showDatePicker && (
+                  <View style={Platform.OS === 'ios' ? styles.datePickerContainer : null}>
+                    <DateTimePicker
+                      value={new Date(date)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                      themeVariant="dark"
+                    />
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity
+                        style={styles.doneButton}
+                        onPress={() => setShowDatePicker(false)}
+                      >
+                        <Text style={styles.doneButtonText}>Concluído</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
 
               {/* Meio de Pagamento (Apenas para despesas) */}
@@ -272,18 +378,16 @@ export default function NewTransactionScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Meio de Pagamento</Text>
                   <View style={styles.pillsContainer}>
-                    <TouchableOpacity
-                      style={[styles.pill, paymentMethod === 'debit' && styles.pillActive]}
+                    <PillButton
+                      label="Débito / Pix"
+                      isActive={paymentMethod === 'debit'}
                       onPress={() => setPaymentMethod('debit')}
-                    >
-                      <Text style={[styles.pillText, paymentMethod === 'debit' && styles.pillTextActive]}>Débito / Pix</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pill, paymentMethod === 'credit' && styles.pillActive]}
+                    />
+                    <PillButton
+                      label="Cartão de Crédito"
+                      isActive={paymentMethod === 'credit'}
                       onPress={() => setPaymentMethod('credit')}
-                    >
-                      <Text style={[styles.pillText, paymentMethod === 'credit' && styles.pillTextActive]}>Cartão de Crédito</Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               )}
@@ -293,24 +397,21 @@ export default function NewTransactionScreen() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Recorrência</Text>
                   <View style={styles.pillsContainer}>
-                    <TouchableOpacity
-                      style={[styles.pill, recurrence === 'variable' && styles.pillActive]}
+                    <PillButton
+                      label="Variável"
+                      isActive={recurrence === 'variable'}
                       onPress={() => setRecurrence('variable')}
-                    >
-                      <Text style={[styles.pillText, recurrence === 'variable' && styles.pillTextActive]}>Variável</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pill, recurrence === 'fixed' && styles.pillActive]}
+                    />
+                    <PillButton
+                      label="Fixa"
+                      isActive={recurrence === 'fixed'}
                       onPress={() => setRecurrence('fixed')}
-                    >
-                      <Text style={[styles.pillText, recurrence === 'fixed' && styles.pillTextActive]}>Fixa</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.pill, recurrence === 'installment' && styles.pillActive]}
+                    />
+                    <PillButton
+                      label="Parcelada"
+                      isActive={recurrence === 'installment'}
                       onPress={() => setRecurrence('installment')}
-                    >
-                      <Text style={[styles.pillText, recurrence === 'installment' && styles.pillTextActive]}>Parcelada</Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               )}
@@ -323,30 +424,14 @@ export default function NewTransactionScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.categoryScroll}
                 >
-                  {currentCategories.map((cat) => {
-                    const isSelected = selectedCategory === cat.id;
-                    const catColor = cat.color || theme.textMuted;
-                    return (
-                      <TouchableOpacity
-                        key={cat.id}
-                        style={[
-                          styles.categoryCard,
-                          isSelected && { backgroundColor: `${catColor}20`, borderColor: catColor }
-                        ]}
-                        onPress={() => setSelectedCategory(cat.id)}
-                      >
-                        <Ionicons
-                          name={cat.icon as any}
-                          size={28}
-                          color={isSelected ? catColor : theme.textMuted}
-                          style={styles.categoryIcon}
-                        />
-                        <Text style={[styles.categoryText, isSelected && { color: catColor }]}>
-                          {cat.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {currentCategories.map((cat) => (
+                    <CategoryItem
+                      key={cat.id}
+                      cat={cat}
+                      isSelected={selectedCategory === cat.id}
+                      onPress={setSelectedCategory}
+                    />
+                  ))}
                 </ScrollView>
               </View>
 
@@ -359,7 +444,7 @@ export default function NewTransactionScreen() {
             <TouchableOpacity
               style={[styles.saveButton, { backgroundColor: activeColor }]}
               activeOpacity={0.8}
-              onPress={handleSave} // Adicionada a função aqui
+              onPress={handleSave}
             >
               <Text style={styles.saveButtonText}>{editId ? 'Salvar Alterações' : `Salvar ${isExpense ? 'Despesa' : 'Receita'}`}</Text>
             </TouchableOpacity>
@@ -448,7 +533,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     backgroundColor: theme.surface,
     marginHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 32,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: theme.border,
@@ -461,22 +546,38 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  valueInputWrapper: {
+  valueDisplayRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
   },
   currencySymbol: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     marginRight: 8,
+    opacity: 0.8,
   },
-  valueInput: {
-    fontSize: 44,
+  displayValueText: {
+    fontSize: 54,
     fontWeight: 'bold',
-    minWidth: 160,
-    textAlign: 'center',
     letterSpacing: -1,
+  },
+  valueInputWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  helperText: {
+    color: theme.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
   },
 
   // Formulário
@@ -519,6 +620,26 @@ const styles = StyleSheet.create({
   },
   dropdownIcon: {
     marginLeft: 'auto',
+  },
+  // Date Picker iOS
+  datePickerContainer: {
+    backgroundColor: theme.surface,
+    borderRadius: 24,
+    marginTop: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  doneButton: {
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: theme.primaryLight,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  doneButtonText: {
+    color: theme.primary,
+    fontWeight: 'bold',
   },
 
   // Pills (Recorrência e Meio de Pagamento)

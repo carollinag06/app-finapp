@@ -95,8 +95,11 @@ export default function BudgetScreen() {
     const expenses: Record<string, number> = {};
     transactions.forEach(t => {
       if (t.type === 'expense') {
-        const [d, m, y] = t.date.split('/').map(Number);
-        if ((m - 1) === currentMonth && y === currentYear) {
+        const transactionDate = t.date.includes('/')
+          ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+          : new Date(t.date);
+
+        if (transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear) {
           expenses[t.category] = (expenses[t.category] || 0) + t.value;
         }
       }

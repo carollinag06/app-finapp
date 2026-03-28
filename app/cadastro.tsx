@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState, useRef, useCallback } from 'react';
 import {
+  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -30,11 +33,49 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+
+  // Refs para navegação entre inputs
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
+
+  const handleRegister = useCallback(async () => {
+    // Validações básicas
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert("Erro", "Por favor, preencha todos os campos.");
+      return;
+    }
+
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Erro", "Por favor, insira um e-mail válido.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Erro", "As senhas não coincidem.");
+      return;
+    }
+
+    setLoading(true);
+
+    // Simulando um delay de rede
+    setTimeout(() => {
+      setLoading(false);
+      router.replace('/(tabs)');
+    }, 1500);
+  }, [name, email, password, confirmPassword]);
 
   const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
@@ -51,7 +92,7 @@ export default function RegisterScreen() {
           >
             {/* --- HEADER --- */}
             <View style={styles.headerContainer}>
-              <TouchableOpacity style={styles.backButton}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
               </TouchableOpacity>
 
@@ -74,6 +115,10 @@ export default function RegisterScreen() {
                     placeholder="Seu nome"
                     placeholderTextColor={theme.textMuted}
                     autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => emailRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={name}
                     onChangeText={setName}
                   />
@@ -86,11 +131,16 @@ export default function RegisterScreen() {
                 <View style={styles.inputContainer}>
                   <Ionicons name="mail-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
+                    ref={emailRef}
                     style={styles.input}
                     placeholder="exemplo@email.com"
                     placeholderTextColor={theme.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={email}
                     onChangeText={setEmail}
                   />
@@ -103,10 +153,14 @@ export default function RegisterScreen() {
                 <View style={styles.inputContainer}>
                   <Ionicons name="lock-closed-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
+                    ref={passwordRef}
                     style={styles.input}
                     placeholder="Crie uma senha forte"
                     placeholderTextColor={theme.textMuted}
                     secureTextEntry={!showPassword}
+                    returnKeyType="next"
+                    onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+                    blurOnSubmit={false}
                     value={password}
                     onChangeText={setPassword}
                   />
@@ -126,10 +180,13 @@ export default function RegisterScreen() {
                 <View style={styles.inputContainer}>
                   <Ionicons name="checkmark-circle-outline" size={20} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
+                    ref={confirmPasswordRef}
                     style={styles.input}
                     placeholder="Repita sua senha"
                     placeholderTextColor={theme.textMuted}
                     secureTextEntry={!showConfirmPassword}
+                    returnKeyType="done"
+                    onSubmitEditing={handleRegister}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                   />
@@ -144,22 +201,33 @@ export default function RegisterScreen() {
               </View>
 
               {/* Botão Cadastrar */}
-              <TouchableOpacity style={styles.registerButton} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={[styles.registerButton, loading && styles.buttonDisabled]}
+                activeOpacity={0.8}
+                onPress={handleRegister}
+                disabled={loading}
+              >{loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
                 <Text style={styles.registerButtonText}>Cadastrar</Text>
-              </TouchableOpacity>
+              )}</TouchableOpacity>
 
             </View>
 
             {/* --- RODAPÉ / LOGIN --- */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Já tem uma conta? </Text>
-              <TouchableOpacity>
-                <Text style={styles.loginText}>Entrar</Text>
-              </TouchableOpacity>
+              <Text style={styles.footerText}>
+                Já tem uma conta?{' '}
+                <Text
+                  style={styles.loginText}
+                  onPress={() => router.push('/login')}
+                >
+                  Entrar
+                </Text>
+              </Text>
             </View>
 
-            <View style={{ height: 40 }} /> {/* Espaçamento extra no final do scroll */}
-
+            <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -270,6 +338,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   // Footer
   footerContainer: {

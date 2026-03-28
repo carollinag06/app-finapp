@@ -249,8 +249,11 @@ export default function TransactionsScreen() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const [day, month, year] = t.date.split('/').map(Number);
-      const isMonthMatch = (month - 1) === currentMonth && year === currentYear;
+      const transactionDate = t.date.includes('/') 
+        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
+        : new Date(t.date);
+
+      const isMonthMatch = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
       const isSearchMatch = t.description.toLowerCase().includes(searchText.toLowerCase()) ||
         t.category.toLowerCase().includes(searchText.toLowerCase());
 
@@ -262,8 +265,13 @@ export default function TransactionsScreen() {
     const groups: Record<string, Transaction[]> = {};
 
     filteredTransactions.forEach(t => {
-      if (!groups[t.date]) groups[t.date] = [];
-      groups[t.date].push(t);
+      // Usamos a data formatada como chave para agrupar (ex: "28/03/2026")
+      const displayDate = t.date.includes('/') 
+        ? t.date 
+        : new Date(t.date).toLocaleDateString('pt-BR');
+        
+      if (!groups[displayDate]) groups[displayDate] = [];
+      groups[displayDate].push(t);
     });
 
     return Object.keys(groups)
