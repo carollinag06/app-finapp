@@ -147,6 +147,13 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="budget"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
         name="mais"
         options={{
           title: 'Mais',

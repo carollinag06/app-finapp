@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- IMPORTAMOS O NOSSO STORE ---
 import { useTransactionStore } from '../../store/transactionStore';
+import { useBudgetStore } from '../../store/budgetStore';
 
 // --- TIPAGEM ---
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
@@ -104,13 +105,13 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: n
   </View>
 );
 
-const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas }: any) => {
-  const percent = receitas > 0 ? Math.min((despesas / receitas) * 100, 100) : 0;
+const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, totalOrcado }: any) => {
+  const percent = totalOrcado > 0 ? Math.min((despesas / totalOrcado) * 100, 100) : 0;
 
   return (
     <View style={styles.mainCard}>
       <View style={styles.mainCardHeader}>
-        <Text style={styles.mainCardLabel}>Orçamento Total</Text>
+        <Text style={styles.mainCardLabel}>Saldo Disponível</Text>
         <TouchableOpacity onPress={toggleSaldo} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name={mostrarSaldo ? "eye-outline" : "eye-off-outline"} size={20} color={theme.textMuted} />
         </TouchableOpacity>
@@ -122,7 +123,7 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas }: any
 
       <View style={styles.progressContainer}>
         <View style={styles.progressLabelRow}>
-          <Text style={styles.progressLabel}>Uso do Orçamento</Text>
+          <Text style={styles.progressLabel}>Uso do Orçamento (R$ {totalOrcado.toLocaleString('pt-BR')})</Text>
           <Text style={styles.progressValue}>{Math.round(percent)}%</Text>
         </View>
         <View style={styles.progressBar}>
@@ -175,25 +176,25 @@ const AtalhosRapidos = () => {
         <Text style={styles.shortcutText}>Lançar</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/budget')}>
         <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}>
           <Ionicons name="pie-chart-outline" size={24} color={theme.success} />
         </View>
         <Text style={styles.shortcutText}>Orçamento</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/budget')}>
         <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
-          <Ionicons name="calendar-outline" size={24} color="#2196F3" />
+          <Ionicons name="flag-outline" size={24} color="#2196F3" />
         </View>
         <Text style={styles.shortcutText}>Metas</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/mais')}>
         <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(255, 215, 64, 0.15)' }]}>
           <Ionicons name="options-outline" size={24} color={theme.warning} />
         </View>
-        <Text style={styles.shortcutText}>Categorias</Text>
+        <Text style={styles.shortcutText}>Mais</Text>
       </TouchableOpacity>
     </View>
   );
@@ -271,6 +272,7 @@ export default function Dashboard() {
   const shortcutWidth = (cardWidth - 48) / 4; // 48 é o gap acumulado entre 4 itens (16 * 3)
 
   const transactions = useTransactionStore((state) => state.transactions);
+  const budgets = useBudgetStore((state) => state.budgets);
 
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
@@ -287,6 +289,10 @@ export default function Dashboard() {
   const despesasTotais = useMemo(() =>
     monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)
     , [monthlyTransactions]);
+
+  const totalOrcado = useMemo(() =>
+    budgets.reduce((acc, b) => acc + b.amount, 0)
+    , [budgets]);
 
   const saldoAtual = receitasTotais - despesasTotais;
 
@@ -328,6 +334,7 @@ export default function Dashboard() {
             saldo={saldoAtual}
             receitas={receitasTotais}
             despesas={despesasTotais}
+            totalOrcado={totalOrcado}
           />
 
           <AtalhosRapidos />

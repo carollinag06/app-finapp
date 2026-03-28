@@ -63,11 +63,11 @@ export default function MoreScreen() {
       ]
     },
     {
-      title: 'Preferências',
+      title: 'Planejamento',
       items: [
+        { id: 'budget', title: 'Metas e Orçamentos', subtitle: 'Definir limites de gastos', icon: 'flag-outline', color: '#FFD60A', onPress: () => router.push('/budget') },
         { id: 'categories', title: 'Categorias', subtitle: 'Personalizar gastos e receitas', icon: 'pricetag-outline', color: '#FFEB3B' },
         { id: 'notifications', title: 'Notificações', subtitle: 'Alertas de vencimento e metas', icon: 'notifications-outline', color: '#FF9800' },
-        { id: 'appearance', title: 'Aparência', subtitle: 'Tema escuro e personalização', icon: 'color-palette-outline', color: '#00BCD4' },
       ]
     },
     {

@@ -1,0 +1,295 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBudgetStore } from '../store/budgetStore';
+
+const theme = {
+  bg: '#0F0F12',
+  surface: '#1A1A1F',
+  surfaceLight: '#25252D',
+  text: '#FFFFFF',
+  textMuted: '#8E8E93',
+  primary: '#8A2BE2',
+  primaryLight: 'rgba(138, 43, 226, 0.15)',
+  border: '#2C2C2E',
+};
+
+const expenseCategories = [
+  { name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A' },
+  { name: 'Transporte', icon: 'car-outline', color: '#64D2FF' },
+  { name: 'Moradia', icon: 'home-outline', color: '#FF9F0A' },
+  { name: 'Saúde', icon: 'heart-outline', color: '#32D74B' },
+  { name: 'Lazer', icon: 'game-controller-outline', color: '#BF5AF2' },
+  { name: 'Educação', icon: 'book-outline', color: '#5E5CE6' },
+  { name: 'Outros', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
+];
+
+export default function NewBudgetScreen() {
+  const params = useLocalSearchParams();
+  const editId = params.id as string;
+  const insets = useSafeAreaInsets();
+  
+  const [category, setCategory] = useState(expenseCategories[0].name);
+  const [amount, setAmount] = useState('');
+  const [icon, setIcon] = useState(expenseCategories[0].icon);
+  const [color, setColor] = useState(expenseCategories[0].color);
+
+  const budgets = useBudgetStore((state) => state.budgets);
+  const addBudget = useBudgetStore((state) => state.addBudget);
+  const updateBudget = useBudgetStore((state) => state.updateBudget);
+  const deleteBudget = useBudgetStore((state) => state.deleteBudget);
+
+  useEffect(() => {
+    if (editId) {
+      const b = budgets.find(b => b.id === editId);
+      if (b) {
+        setCategory(b.category);
+        setAmount(b.amount.toString());
+        setIcon(b.icon || 'wallet-outline');
+        setColor(b.color || theme.primary);
+      }
+    }
+  }, [editId, budgets]);
+
+  const handleSave = () => {
+    const numericAmount = parseFloat(amount.replace(/\D/g, '')) / 100;
+    
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert("Aviso", "Por favor, digite um valor válido.");
+      return;
+    }
+
+    if (editId) {
+      updateBudget(editId, { category, amount: numericAmount, icon, color });
+    } else {
+      addBudget({ category, amount: numericAmount, icon, color, period: 'monthly' });
+    }
+    router.back();
+  };
+
+  const formatValue = (text: string) => {
+    const cleanValue = text.replace(/\D/g, '');
+    if (!cleanValue) {
+      setAmount('');
+      return;
+    }
+    const val = parseInt(cleanValue) / 100;
+    setAmount(val.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+  };
+
+  const handleDelete = () => {
+    Alert.alert("Excluir Meta", "Deseja realmente excluir esta meta?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Excluir", style: "destructive", onPress: () => {
+        deleteBudget(editId);
+        router.back();
+      }}
+    ]);
+  };
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+            <Ionicons name="close" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{editId ? 'Editar Meta' : 'Nova Meta'}</Text>
+          {editId ? (
+            <TouchableOpacity onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={24} color={theme.danger} />
+            </TouchableOpacity>
+          ) : <View style={{ width: 40 }} />}
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.valueContainer}>
+            <Text style={styles.valueLabel}>Valor do Orçamento Mensal</Text>
+            <View style={styles.valueInputWrapper}>
+              <Text style={[styles.currencySymbol, { color: theme.primary }]}>R$</Text>
+              <TextInput
+                style={[styles.valueInput, { color: theme.primary }]}
+                placeholder="0,00"
+                placeholderTextColor={theme.textMuted}
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={formatValue}
+              />
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Selecione a Categoria</Text>
+            <View style={styles.categoryGrid}>
+              {expenseCategories.map((cat) => {
+                const isSelected = category === cat.name;
+                return (
+                  <TouchableOpacity
+                    key={cat.name}
+                    style={[
+                      styles.categoryCard,
+                      isSelected && { backgroundColor: `${cat.color}20`, borderColor: cat.color }
+                    ]}
+                    onPress={() => {
+                      setCategory(cat.name);
+                      setIcon(cat.icon);
+                      setColor(cat.color);
+                    }}
+                  >
+                    <Ionicons 
+                      name={cat.icon as any} 
+                      size={24} 
+                      color={isSelected ? cat.color : theme.textMuted} 
+                    />
+                    <Text style={[styles.categoryText, isSelected && { color: cat.color }]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSave}>
+            <Text style={styles.saveButtonText}>Salvar Orçamento</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.bg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.text,
+    letterSpacing: -0.5,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  valueContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+    backgroundColor: theme.surface,
+    paddingVertical: 32,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  valueLabel: {
+    color: theme.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  valueInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currencySymbol: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  valueInput: {
+    fontSize: 44,
+    fontWeight: 'bold',
+    minWidth: 160,
+    textAlign: 'center',
+    letterSpacing: -1,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  label: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  categoryCard: {
+    width: '31%',
+    aspectRatio: 1,
+    backgroundColor: theme.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  categoryText: {
+    color: theme.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  saveButton: {
+    height: 60,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  danger: {
+    color: '#FF453A',
+  }
+});

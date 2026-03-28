@@ -18,34 +18,40 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Importamos a nossa "Caixa Global" (Store)
 import { useTransactionStore } from '../store/transactionStore';
 
-// --- TEMA ---
+// --- TEMA (Sincronizado com Analytics) ---
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F12',
+  surface: '#1A1A1F',
+  surfaceLight: '#25252D',
   text: '#FFFFFF',
-  textMuted: '#A0A0A0',
-  primary: '#8A2BE2', // Roxo
-  border: '#333333',
-  success: '#4CAF50', // Verde (Receita)
-  danger: '#F44336',  // Vermelho (Despesa)
+  textMuted: '#8E8E93',
+  primary: '#8A2BE2',
+  primaryLight: 'rgba(138, 43, 226, 0.15)',
+  border: '#2C2C2E',
+  success: '#32D74B',
+  successLight: 'rgba(50, 215, 75, 0.15)',
+  danger: '#FF453A',
+  dangerLight: 'rgba(255, 69, 58, 0.15)',
 };
 
-const MAX_WIDTH = 600; // Largura máxima para desktop
+const MAX_WIDTH = 600;
 
-// --- CATEGORIAS MOCKADAS ---
+// --- CATEGORIAS ATUALIZADAS (Sincronizado com Analytics) ---
 const expenseCategories = [
-  { id: '1', name: 'Alimentação', icon: 'restaurant-outline' },
-  { id: '2', name: 'Transporte', icon: 'bus-outline' },
-  { id: '3', name: 'Moradia', icon: 'home-outline' },
-  { id: '4', name: 'Saúde', icon: 'medkit-outline' },
-  { id: '5', name: 'Lazer', icon: 'game-controller-outline' },
+  { id: '1', name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A' },
+  { id: '2', name: 'Transporte', icon: 'car-outline', color: '#64D2FF' },
+  { id: '3', name: 'Moradia', icon: 'home-outline', color: '#FF9F0A' },
+  { id: '4', name: 'Saúde', icon: 'heart-outline', color: '#32D74B' },
+  { id: '5', name: 'Lazer', icon: 'game-controller-outline', color: '#BF5AF2' },
+  { id: '10', name: 'Educação', icon: 'book-outline', color: '#5E5CE6' },
+  { id: '11', name: 'Outros', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
 ];
 
 const incomeCategories = [
-  { id: '6', name: 'Salário', icon: 'cash-outline' },
-  { id: '7', name: 'Freelance', icon: 'laptop-outline' },
-  { id: '8', name: 'Investimento', icon: 'trending-up-outline' },
-  { id: '9', name: 'Presente', icon: 'gift-outline' },
+  { id: '6', name: 'Salário', icon: 'cash-outline', color: '#30D158' },
+  { id: '7', name: 'Freelance', icon: 'laptop-outline', color: '#FF375F' },
+  { id: '8', name: 'Investimento', icon: 'trending-up-outline', color: '#0A84FF' },
+  { id: '9', name: 'Presente', icon: 'gift-outline', color: '#FFD60A' },
 ];
 
 export default function NewTransactionScreen() {
@@ -103,15 +109,16 @@ export default function NewTransactionScreen() {
     }
 
     // 2. Converte "50,00" para 50.00 para podermos fazer contas matemáticas
-    const numericValue = parseFloat(value.replace(',', '.'));
+    const numericValue = parseFloat(value.replace('.', '').replace(',', '.'));
 
-    if (isNaN(numericValue)) {
-      Alert.alert("Aviso", "Por favor, digite um valor numérico válido.");
+    if (isNaN(numericValue) || numericValue <= 0) {
+      Alert.alert("Aviso", "Por favor, digite um valor válido maior que zero.");
       return;
     }
 
     // 3. Pega o nome da categoria baseada no ID selecionado
-    const categoryName = currentCategories.find(c => c.id === selectedCategory)?.name || 'Outros';
+    const selectedCat = currentCategories.find(c => c.id === selectedCategory);
+    const categoryName = selectedCat?.name || 'Outros';
 
     // 4. Se for edição, remove a antiga antes de adicionar a nova
     if (editId) {
@@ -131,6 +138,24 @@ export default function NewTransactionScreen() {
 
     // 6. Fecha o Modal e volta pra tela inicial
     router.back();
+  };
+
+  // Formata o valor conforme o usuário digita
+  const formatValue = (text: string) => {
+    // Remove tudo que não é número
+    const cleanValue = text.replace(/\D/g, '');
+    if (!cleanValue) {
+      setValue('');
+      return;
+    }
+
+    // Converte para centavos
+    const amount = parseInt(cleanValue) / 100;
+    const formatted = amount.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    setValue(formatted);
   };
 
   const handleDelete = () => {
@@ -208,8 +233,8 @@ export default function NewTransactionScreen() {
                   placeholderTextColor={theme.textMuted}
                   keyboardType="numeric"
                   value={value}
-                  onChangeText={setValue}
-                  maxLength={10}
+                  onChangeText={formatValue}
+                  maxLength={13}
                 />
               </View>
             </View>
@@ -300,22 +325,23 @@ export default function NewTransactionScreen() {
                 >
                   {currentCategories.map((cat) => {
                     const isSelected = selectedCategory === cat.id;
+                    const catColor = cat.color || theme.textMuted;
                     return (
                       <TouchableOpacity
                         key={cat.id}
                         style={[
                           styles.categoryCard,
-                          isSelected && { backgroundColor: activeColor, borderColor: activeColor }
+                          isSelected && { backgroundColor: `${catColor}20`, borderColor: catColor }
                         ]}
                         onPress={() => setSelectedCategory(cat.id)}
                       >
                         <Ionicons
                           name={cat.icon as any}
-                          size={24}
-                          color={isSelected ? '#FFF' : theme.textMuted}
+                          size={28}
+                          color={isSelected ? catColor : theme.textMuted}
                           style={styles.categoryIcon}
                         />
-                        <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
+                        <Text style={[styles.categoryText, isSelected && { color: catColor }]}>
                           {cat.name}
                         </Text>
                       </TouchableOpacity>
@@ -360,26 +386,30 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: theme.text,
+    letterSpacing: -0.5,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -390,15 +420,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: theme.surface,
     marginHorizontal: 20,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 32,
+    borderRadius: 16,
+    padding: 6,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   typeButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
   },
   typeText: {
     color: theme.textMuted,
@@ -413,12 +445,21 @@ const styles = StyleSheet.create({
   // Input de Valor Destacado
   valueContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
+    backgroundColor: theme.surface,
+    marginHorizontal: 20,
+    paddingVertical: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   valueLabel: {
     color: theme.textMuted,
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   valueInputWrapper: {
     flexDirection: 'row',
@@ -426,30 +467,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   currencySymbol: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     marginRight: 8,
-    marginTop: 8,
   },
   valueInput: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: 'bold',
-    minWidth: 120,
+    minWidth: 160,
     textAlign: 'center',
+    letterSpacing: -1,
   },
 
   // Formulário
   formSection: {
     paddingHorizontal: 20,
+    gap: 16,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 8,
   },
   label: {
     color: theme.text,
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -457,8 +499,8 @@ const styles = StyleSheet.create({
     backgroundColor: theme.surface,
     borderWidth: 1,
     borderColor: theme.border,
-    borderRadius: 12,
-    height: 56,
+    borderRadius: 16,
+    height: 60,
     paddingHorizontal: 16,
   },
   inputIcon: {
@@ -483,19 +525,18 @@ const styles = StyleSheet.create({
   pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 16,
     backgroundColor: theme.surface,
     borderWidth: 1,
     borderColor: theme.border,
-    marginBottom: 8,
   },
   pillActive: {
-    backgroundColor: 'rgba(138, 43, 226, 0.15)',
+    backgroundColor: theme.primaryLight,
     borderColor: theme.primary,
   },
   pillText: {
@@ -510,18 +551,29 @@ const styles = StyleSheet.create({
   // Categorias
   categoryScroll: {
     gap: 12,
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   categoryCard: {
     width: 90,
     height: 90,
     backgroundColor: theme.surface,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   categoryIcon: {
     marginBottom: 8,
@@ -529,7 +581,7 @@ const styles = StyleSheet.create({
   categoryText: {
     color: theme.textMuted,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 
   // Rodapé e Botão Salvar
@@ -542,10 +594,21 @@ const styles = StyleSheet.create({
     borderTopColor: theme.border,
   },
   saveButton: {
-    height: 56,
-    borderRadius: 12,
+    height: 60,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   saveButtonText: {
     color: '#FFF',
