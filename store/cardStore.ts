@@ -3,93 +3,94 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { supabase } from '../src/lib/supabase';
 import { safeStorage } from '../src/lib/storage';
 
-export interface BudgetGoal {
+export interface CreditCard {
   id: string;
-  category: string;
-  amount: number;
-  period: 'monthly' | 'yearly';
-  icon?: string;
-  color?: string;
+  name: string;
+  limit: number;
+  closingDay: number;
+  dueDay: number;
+  color: string;
+  brand: string; // ex: 'Visa', 'Mastercard'
   user_id?: string;
 }
 
-interface BudgetStore {
-  budgets: BudgetGoal[];
-  fetchBudgets: () => Promise<void>;
-  addBudget: (budget: Omit<BudgetGoal, 'id'>) => Promise<void>;
-  updateBudget: (id: string, budget: Partial<BudgetGoal>) => Promise<void>;
-  deleteBudget: (id: string) => Promise<void>;
+interface CardStore {
+  cards: CreditCard[];
+  fetchCards: () => Promise<void>;
+  addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
+  updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
+  deleteCard: (id: string) => Promise<void>;
   reset: () => void;
 }
 
-export const useBudgetStore = create<BudgetStore>()(
+export const useCardStore = create<CardStore>()(
   persist(
     (set) => ({
-      budgets: [],
+      cards: [],
 
-      reset: () => set({ budgets: [] }),
+      reset: () => set({ cards: [] }),
 
-      fetchBudgets: async () => {
+      fetchCards: async () => {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) return;
 
         const { data, error } = await supabase
-          .from('budgets')
+          .from('cards')
           .select('*')
           .eq('user_id', user.id);
 
         if (error) throw error;
         if (data) {
-          set({ budgets: data });
+          set({ cards: data });
         }
       },
 
-      addBudget: async (newBudget) => {
+      addCard: async (newCard) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) throw new Error("Usuário não autenticado");
 
         const { data, error } = await supabase
-          .from('budgets')
-          .insert([{ ...newBudget, user_id: user.id }])
+          .from('cards')
+          .insert([{ ...newCard, user_id: user.id }])
           .select()
           .single();
 
         if (error) throw error;
         if (data) {
           set((state) => ({
-            budgets: [data, ...state.budgets]
+            cards: [data, ...state.cards]
           }));
         }
       },
 
-      updateBudget: async (id, updatedBudget) => {
+      updateCard: async (id, updatedCard) => {
         const { error } = await supabase
-          .from('budgets')
-          .update(updatedBudget)
+          .from('cards')
+          .update(updatedCard)
           .eq('id', id);
 
         if (error) throw error;
         
         set((state) => ({
-          budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updatedBudget } : b)
+          cards: state.cards.map((c) => c.id === id ? { ...c, ...updatedCard } : c)
         }));
       },
 
-      deleteBudget: async (id) => {
+      deleteCard: async (id) => {
         const { error } = await supabase
-          .from('budgets')
+          .from('cards')
           .delete()
           .eq('id', id);
 
         if (error) throw error;
 
         set((state) => ({
-          budgets: state.budgets.filter((b) => b.id !== id)
+          cards: state.cards.filter((c) => c.id !== id)
         }));
       },
     }),
     {
-      name: 'budget-storage',
+      name: 'card-storage',
       storage: createJSONStorage(() => safeStorage as any),
     }
   )

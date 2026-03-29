@@ -1,7 +1,8 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { ComponentProps, useMemo, useState } from 'react';
+import React, { ComponentProps, useEffect, useMemo, useState } from 'react';
 import {
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // --- IMPORTAMOS O NOSSO STORE ---
 import { useTransactionStore } from '../../store/transactionStore';
 import { useBudgetStore } from '../../store/budgetStore';
+import { supabase } from '../../src/lib/supabase';
 
 // --- TIPAGEM ---
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
@@ -62,45 +64,60 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 // --- COMPONENTES ---
 
-const Header = ({ currentMonth, currentYear, onPrev, onNext }: { currentMonth: number, currentYear: number, onPrev: () => void, onNext: () => void }) => (
-  <View style={styles.header}>
-    <View style={styles.headerTop}>
-      <View>
-        <Text style={styles.greetingText}>Olá, Carol 👋</Text>
-        <Text style={styles.welcomeText}>Sua saúde financeira está ótima!</Text>
-      </View>
-      <View style={styles.headerIconsRow}>
+const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
+  currentMonth: number,
+  currentYear: number,
+  onPrev: () => void,
+  onNext: () => void,
+  user: any
+}) => {
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Usuário';
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
-        <TouchableOpacity style={styles.iconCircleHeader} onPress={() => router.push('/login')}>
-          <Ionicons name="person-outline" size={22} color={theme.text} />
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerTop}>
+        <View>
+          <Text style={styles.greetingText}>Olá, {firstName} 👋</Text>
+          <Text style={styles.welcomeText}>Sua saúde financeira está ótima!</Text>
+        </View>
+        <View style={styles.headerIconsRow}>
+
+          <TouchableOpacity style={styles.iconCircleHeader} onPress={() => router.push('/profile')}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
+            ) : (
+              <Ionicons name="person-outline" size={22} color={theme.text} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.monthSelectorRow}>
+        <TouchableOpacity
+          style={styles.monthArrowBtn}
+          onPress={onPrev}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="chevron-back" size={18} color={theme.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.monthDisplay} onPress={() => router.push('/analytics')}>
+          <Ionicons name="calendar-outline" size={16} color={theme.primary} style={{ marginRight: 8 }} />
+          <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.monthArrowBtn}
+          onPress={onNext}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
         </TouchableOpacity>
       </View>
     </View>
-
-    <View style={styles.monthSelectorRow}>
-      <TouchableOpacity
-        style={styles.monthArrowBtn}
-        onPress={onPrev}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="chevron-back" size={18} color={theme.textMuted} />
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.monthDisplay} onPress={() => router.push('/analytics')}>
-        <Ionicons name="calendar-outline" size={16} color={theme.primary} style={{ marginRight: 8 }} />
-        <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.monthArrowBtn}
-        onPress={onNext}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valorPendente, totalOrcado }: any) => {
   const percent = totalOrcado > 0 ? Math.min((despesas / totalOrcado) * 100, 100) : 0;
@@ -272,6 +289,7 @@ const HealthCard = () => (
 // --- TELA PRINCIPAL ---
 
 export default function Dashboard() {
+  const [user, setUser] = useState<any>(null);
   const [mostrarSaldo, setMostrarSaldo] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -284,6 +302,14 @@ export default function Dashboard() {
 
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, []);
 
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
@@ -334,6 +360,18 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    async function testConnection() {
+      const { data, error } = await supabase.from('transactions').select('*').limit(1);
+      if (error) {
+        console.log("❌ Erro de conexão:", error.message);
+      } else {
+        console.log("✅ Conexão com Postgres estabelecida!", data);
+      }
+    }
+    testConnection();
+  }, []);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
@@ -342,6 +380,7 @@ export default function Dashboard() {
           currentYear={currentYear}
           onPrev={handlePrevMonth}
           onNext={handleNextMonth}
+          user={user}
         />
 
         <ScrollView
@@ -438,6 +477,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.border,
+    overflow: 'hidden',
+  },
+  headerAvatar: {
+    width: '100%',
+    height: '100%',
   },
   notificationBadge: {
     position: 'absolute',

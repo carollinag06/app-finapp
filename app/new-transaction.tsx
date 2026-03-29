@@ -1,9 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,9 +16,8 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// Importamos a nossa "Caixa Global" (Store)
 import { useTransactionStore } from '../store/transactionStore';
+import { useCardStore } from '../store/cardStore';
 
 // --- TEMA (Sincronizado com Analytics) ---
 const theme = {
@@ -105,7 +105,9 @@ export default function NewTransactionScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('1');
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix'>('debit');
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState<'fixed' | 'variable' | 'installment'>('variable');
+  const [loading, setLoading] = useState(false);
 
   // --- OTIMIZAÇÃO ZUSTAND ---
   // Seletores específicos evitam re-renders quando outras partes do store mudam
@@ -113,6 +115,8 @@ export default function NewTransactionScreen() {
   const addTransaction = useTransactionStore((state) => state.addTransaction);
   const updateTransaction = useTransactionStore((state) => state.updateTransaction);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
+
+  const cards = useCardStore((state) => state.cards);
 
   // --- CÁLCULOS MEMOIZADOS (useMemo) ---
   // Recalcula apenas quando transactionType mudar
@@ -145,6 +149,7 @@ export default function NewTransactionScreen() {
         setDate(dateValue);
 
         setPaymentMethod(t.paymentMethod || 'debit');
+        setSelectedCardId(t.cardId || null);
         setRecurrence(t.recurrence || 'variable');
 
         const categories = t.type === 'expense' ? expenseCategories : incomeCategories;
@@ -186,7 +191,7 @@ export default function NewTransactionScreen() {
     }
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!value) {
       Alert.alert("Aviso", "Por favor, preencha o valor da transação.");
       return;
@@ -211,17 +216,26 @@ export default function NewTransactionScreen() {
       category: categoryName,
       date,
       paymentMethod,
+      cardId: paymentMethod === 'credit' ? selectedCardId || undefined : undefined,
       recurrence,
     };
 
-    if (editId) {
-      updateTransaction(editId, transactionData);
-    } else {
-      addTransaction(transactionData);
-    }
+    setLoading(true);
 
-    router.back();
-  }, [value, description, transactionType, selectedCategory, date, paymentMethod, recurrence, currentCategories, editId, updateTransaction, addTransaction]);
+    try {
+      if (editId) {
+        await updateTransaction(editId, transactionData);
+      } else {
+        await addTransaction(transactionData);
+      }
+
+      router.back();
+    } catch (err: any) {
+      Alert.alert("Erro", err.message || "Ocorreu um erro inesperado ao salvar.");
+    } finally {
+      setLoading(false);
+    }
+  }, [value, description, transactionType, selectedCategory, date, paymentMethod, selectedCardId, recurrence, currentCategories, editId, updateTransaction, addTransaction]);
 
   const handleDelete = useCallback(() => {
     Alert.alert(
@@ -230,9 +244,16 @@ export default function NewTransactionScreen() {
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Excluir", style: "destructive", onPress: () => {
-            deleteTransaction(editId);
-            router.back();
+          text: "Excluir", style: "destructive", onPress: async () => {
+            setLoading(true);
+            try {
+              await deleteTransaction(editId);
+              router.back();
+            } catch (err: any) {
+              Alert.alert("Erro", err.message || "Erro ao excluir transação");
+            } finally {
+              setLoading(false);
+            }
           }
         }
       ]
@@ -392,6 +413,62 @@ export default function NewTransactionScreen() {
                 </View>
               )}
 
+              {/* Seleção de Cartão (Apenas se for crédito) */}
+              {isExpense && paymentMethod === 'credit' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Selecionar Cartão</Text>
+                  {cards.length > 0 ? (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.cardSelectorScroll}
+                    >
+                      {cards.map((card) => {
+                        const isSelected = selectedCardId === card.id;
+                        return (
+                          <TouchableOpacity
+                            key={card.id}
+                            style={[
+                              styles.cardSelectItem,
+                              { borderColor: isSelected ? card.color : theme.border },
+                              isSelected && { backgroundColor: `${card.color}15` }
+                            ]}
+                            onPress={() => setSelectedCardId(card.id)}
+                          >
+                            <MaterialCommunityIcons
+                              name={isSelected ? "credit-card-check" : "credit-card-outline"}
+                              size={20}
+                              color={isSelected ? card.color : theme.textMuted}
+                            />
+                            <Text style={[
+                              styles.cardSelectName,
+                              { color: isSelected ? card.color : theme.textMuted }
+                            ]}>
+                              {card.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                      <TouchableOpacity
+                        style={styles.addCardMiniButton}
+                        onPress={() => router.push('/new-card')}
+                      >
+                        <Ionicons name="add" size={20} color={theme.primary} />
+                        <Text style={styles.addCardMiniText}>Novo</Text>
+                      </TouchableOpacity>
+                    </ScrollView>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.noCardsContainer}
+                      onPress={() => router.push('/new-card')}
+                    >
+                      <Ionicons name="card-outline" size={24} color={theme.textMuted} />
+                      <Text style={styles.noCardsText}>Nenhum cartão cadastrado. Toque para adicionar.</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
               {/* Recorrência (Apenas para despesas) */}
               {isExpense && (
                 <View style={styles.inputGroup}>
@@ -442,11 +519,18 @@ export default function NewTransactionScreen() {
           {/* --- BOTÃO SALVAR --- */}
           <View style={styles.footer}>
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: activeColor }]}
+              style={[styles.saveButton, { backgroundColor: activeColor }, loading && styles.buttonDisabled]}
               activeOpacity={0.8}
               onPress={handleSave}
+              disabled={loading}
             >
-              <Text style={styles.saveButtonText}>{editId ? 'Salvar Alterações' : `Salvar ${isExpense ? 'Despesa' : 'Receita'}`}</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  {editId ? 'Salvar Alterações' : `Salvar ${isExpense ? 'Despesa' : 'Receita'}`}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -669,6 +753,59 @@ const styles = StyleSheet.create({
     color: theme.primary,
   },
 
+  // Seleção de Cartão
+  cardSelectorScroll: {
+    paddingVertical: 4,
+    gap: 12,
+  },
+  cardSelectItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  cardSelectName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addCardMiniButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderStyle: 'dashed',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  addCardMiniText: {
+    color: theme.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  noCardsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  noCardsText: {
+    color: theme.textMuted,
+    fontSize: 14,
+    flex: 1,
+  },
+
   // Categorias
   categoryScroll: {
     gap: 12,
@@ -735,5 +872,8 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });

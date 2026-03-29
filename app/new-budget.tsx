@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -47,6 +48,7 @@ export default function NewBudgetScreen() {
   const [amount, setAmount] = useState(''); // Raw numbers string
   const [icon, setIcon] = useState(expenseCategories[0].icon);
   const [color, setColor] = useState(expenseCategories[0].color);
+  const [loading, setLoading] = useState(false);
 
   const budgets = useBudgetStore((state) => state.budgets);
   const addBudget = useBudgetStore((state) => state.addBudget);
@@ -74,7 +76,7 @@ export default function NewBudgetScreen() {
     }
   }, [editId, budgets]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(async () => {
     const numericAmount = Number(amount) / 100;
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
@@ -82,13 +84,20 @@ export default function NewBudgetScreen() {
       return;
     }
 
-    if (editId) {
-      updateBudget(editId, { category, amount: numericAmount, icon, color });
-    } else {
-      addBudget({ category, amount: numericAmount, icon, color, period: 'monthly' });
+    setLoading(true);
+    try {
+      if (editId) {
+        await updateBudget(editId, { category, amount: numericAmount, icon, color });
+      } else {
+        await addBudget({ category, amount: numericAmount, icon, color, period: 'monthly' });
+      }
+      router.back();
+    } catch (err) {
+      Alert.alert("Erro", "Ocorreu um erro ao salvar a meta.");
+    } finally {
+      setLoading(false);
     }
-    router.back();
-  };
+  }, [amount, category, icon, color, editId, addBudget, updateBudget]);
 
   const formatValue = (text: string) => {
     const cleanValue = text.replace(/\D/g, '');
@@ -103,9 +112,16 @@ export default function NewBudgetScreen() {
     Alert.alert("Excluir Meta", "Deseja realmente excluir esta meta?", [
       { text: "Cancelar", style: "cancel" },
       {
-        text: "Excluir", style: "destructive", onPress: () => {
-          deleteBudget(editId);
-          router.back();
+        text: "Excluir", style: "destructive", onPress: async () => {
+          setLoading(true);
+          try {
+            await deleteBudget(editId);
+            router.back();
+          } catch (err) {
+            Alert.alert("Erro", "Erro ao excluir a meta.");
+          } finally {
+            setLoading(false);
+          }
         }
       }
     ]);
@@ -115,12 +131,12 @@ export default function NewBudgetScreen() {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()} disabled={loading}>
             <Ionicons name="close" size={24} color={theme.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{editId ? 'Editar Meta' : 'Nova Meta'}</Text>
           {editId ? (
-            <TouchableOpacity onPress={handleDelete}>
+            <TouchableOpacity onPress={handleDelete} disabled={loading}>
               <Ionicons name="trash-outline" size={24} color={theme.danger} />
             </TouchableOpacity>
           ) : <View style={{ width: 40 }} />}
@@ -131,6 +147,7 @@ export default function NewBudgetScreen() {
             style={styles.valueContainer}
             onPress={() => inputRef.current?.focus()}
             activeOpacity={1}
+            disabled={loading}
           >
             <Text style={styles.valueLabel}>Valor do Orçamento Mensal</Text>
             <View style={styles.valueInputWrapper}>
@@ -151,6 +168,7 @@ export default function NewBudgetScreen() {
                 placeholder="0"
                 placeholderTextColor="transparent"
                 caretHidden={true}
+                editable={!loading}
               />
               <Text style={styles.helperText}>Toque para digitar o valor</Text>
             </View>
@@ -173,6 +191,7 @@ export default function NewBudgetScreen() {
                       setIcon(cat.icon);
                       setColor(cat.color);
                     }}
+                    disabled={loading}
                   >
                     <Ionicons
                       name={cat.icon as any}
@@ -190,8 +209,16 @@ export default function NewBudgetScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Salvar Orçamento</Text>
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: theme.primary }, loading && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.saveButtonText}>Salvar Orçamento</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -331,7 +358,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   danger: {
     color: '#FF453A',
   }
 });
+

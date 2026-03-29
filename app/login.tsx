@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -13,16 +14,17 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../src/lib/supabase';
 
 // --- TEMA ---
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F12',
+  surface: '#1A1A1F',
   text: '#FFFFFF',
-  textMuted: '#A0A0A0',
+  textMuted: '#8E8E93',
   primary: '#8A2BE2', // Roxo
-  border: '#333333',
-  danger: '#F44336',
+  border: '#2C2C2E',
+  danger: '#FF453A',
 };
 
 const MAX_WIDTH = 600; // Largura máxima para desktop
@@ -31,20 +33,55 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password,
+    });
+
+    if (error) {
+      Alert.alert('Erro no Login', error.message);
+      setLoading(false);
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Aviso', 'Por favor, insira seu e-mail para recuperar a senha.');
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+
+    if (error) {
+      Alert.alert('Erro', error.message);
+    } else {
+      Alert.alert('Sucesso', 'Um e-mail de recuperação foi enviado para o seu endereço.');
+    }
+  };
 
   const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
-        {/* Comportamento para o teclado não cobrir os inputs */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-
           {/* --- HEADER / LOGO --- */}
           <View style={styles.headerContainer}>
             <View style={styles.logoCircle}>
@@ -56,7 +93,6 @@ export default function LoginScreen() {
 
           {/* --- FORMULÁRIO --- */}
           <View style={styles.formContainer}>
-
             {/* Input de E-mail */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>E-mail</Text>
@@ -70,6 +106,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   value={email}
                   onChangeText={setEmail}
+                  editable={!loading}
                 />
               </View>
             </View>
@@ -86,6 +123,7 @@ export default function LoginScreen() {
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
+                  editable={!loading}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                   <Ionicons
@@ -100,30 +138,34 @@ export default function LoginScreen() {
             {/* Esqueceu a senha */}
             <TouchableOpacity
               style={styles.forgotPasswordButton}
-              onPress={() => Alert.alert("Recuperar Senha", "Um e-mail de recuperação foi enviado para o seu endereço.")}
+              onPress={handleForgotPassword}
+              disabled={loading}
             >
               <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
             </TouchableOpacity>
 
             {/* Botão Entrar */}
             <TouchableOpacity
-              style={styles.loginButton}
+              style={[styles.loginButton, loading && styles.buttonDisabled]}
               activeOpacity={0.8}
-              onPress={() => router.replace('/(tabs)')}
+              onPress={handleLogin}
+              disabled={loading}
             >
-              <Text style={styles.loginButtonText}>Entrar</Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.loginButtonText}>Entrar</Text>
+              )}
             </TouchableOpacity>
-
           </View>
 
           {/* --- RODAPÉ / CADASTRAR --- */}
           <View style={styles.footerContainer}>
             <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
-            <TouchableOpacity onPress={() => router.push('/cadastro')}>
+            <TouchableOpacity onPress={() => router.push('/cadastro')} disabled={loading}>
               <Text style={styles.registerText}>Cadastre-se</Text>
             </TouchableOpacity>
           </View>
-
         </KeyboardAvoidingView>
       </View>
     </View>
@@ -235,6 +277,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   // Footer
   footerContainer: {

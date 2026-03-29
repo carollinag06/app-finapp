@@ -15,15 +15,16 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../src/lib/supabase';
 
 // --- TEMA ---
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F12',
+  surface: '#1A1A1F',
   text: '#FFFFFF',
-  textMuted: '#A0A0A0',
+  textMuted: '#8E8E93',
   primary: '#8A2BE2', // Roxo
-  border: '#333333',
+  border: '#2C2C2E',
 };
 
 const MAX_WIDTH = 600; // Largura máxima para desktop
@@ -70,11 +71,29 @@ export default function RegisterScreen() {
 
     setLoading(true);
 
-    // Simulando um delay de rede
-    setTimeout(() => {
+    const { error, data } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password,
+      options: {
+        data: {
+          full_name: name.trim(),
+        },
+      },
+    });
+
+    if (error) {
+      Alert.alert("Erro no Cadastro", error.message);
       setLoading(false);
-      router.replace('/(tabs)');
-    }, 1500);
+    } else {
+      // Se precisar de confirmação de e-mail, avise o usuário
+      if (data.session) {
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert("Sucesso", "Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.", [
+          { text: "OK", onPress: () => router.replace('/login') }
+        ]);
+      }
+    }
   }, [name, email, password, confirmPassword]);
 
   const contentWidth = Math.min(screenWidth, MAX_WIDTH);
@@ -92,7 +111,7 @@ export default function RegisterScreen() {
           >
             {/* --- HEADER --- */}
             <View style={styles.headerContainer}>
-              <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
               </TouchableOpacity>
 
@@ -121,6 +140,7 @@ export default function RegisterScreen() {
                     blurOnSubmit={false}
                     value={name}
                     onChangeText={setName}
+                    editable={!loading}
                   />
                 </View>
               </View>
@@ -143,6 +163,7 @@ export default function RegisterScreen() {
                     blurOnSubmit={false}
                     value={email}
                     onChangeText={setEmail}
+                    editable={!loading}
                   />
                 </View>
               </View>
@@ -163,8 +184,9 @@ export default function RegisterScreen() {
                     blurOnSubmit={false}
                     value={password}
                     onChangeText={setPassword}
+                    editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon} disabled={loading}>
                     <Ionicons
                       name={showPassword ? "eye-outline" : "eye-off-outline"}
                       size={20}
@@ -189,8 +211,9 @@ export default function RegisterScreen() {
                     onSubmitEditing={handleRegister}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    editable={!loading}
                   />
-                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon} disabled={loading}>
                     <Ionicons
                       name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
                       size={20}

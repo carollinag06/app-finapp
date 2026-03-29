@@ -1,8 +1,9 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,16 +12,20 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../src/lib/supabase';
+import { useTransactionStore } from '../../store/transactionStore';
+import { useBudgetStore } from '../../store/budgetStore';
+import { useCardStore } from '../../store/cardStore';
 
 // --- TEMA ---
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F12',
+  surface: '#1A1A1F',
   text: '#FFFFFF',
-  textMuted: '#A0A0A0',
+  textMuted: '#8E8E93',
   primary: '#8A2BE2', // Roxo
-  border: '#333333',
-  danger: '#F44336',
+  border: '#2C2C2E',
+  danger: '#FF453A',
 };
 
 const MAX_WIDTH = 600; // Largura máxima para desktop
@@ -51,6 +56,36 @@ const MenuItem = ({ icon, title, subtitle, onPress, color = theme.text, iconType
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const [user, setUser] = useState<any>(null);
+
+  const resetTransactions = useTransactionStore(state => state.reset);
+  const resetBudgets = useBudgetStore(state => state.reset);
+  const resetCards = useCardStore(state => state.reset);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, []);
+
+  const handleLogout = async () => {
+    Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          await supabase.auth.signOut();
+          resetTransactions();
+          resetBudgets();
+          resetCards();
+          router.replace('/login');
+        }
+      }
+    ]);
+  };
 
   const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
@@ -58,9 +93,9 @@ export default function MoreScreen() {
     {
       title: 'Minha Conta',
       items: [
-        { id: 'profile', title: 'Meu Perfil', subtitle: 'Dados pessoais e segurança', icon: 'person-outline', color: theme.primary },
+        { id: 'profile', title: 'Meu Perfil', subtitle: 'Dados pessoais e segurança', icon: 'person-outline', color: theme.primary, onPress: () => router.push('/profile') },
         { id: 'accounts', title: 'Contas Bancárias', subtitle: 'Gerenciar conexões e saldos', icon: 'wallet-outline', color: '#4CAF50' },
-        { id: 'cards', title: 'Cartões de Crédito', subtitle: 'Limites e faturas', icon: 'card-outline', color: '#2196F3' },
+        { id: 'cards', title: 'Cartões de Crédito', subtitle: 'Limites e faturas', icon: 'card-outline', color: '#2196F3', onPress: () => router.push('/cards') },
       ]
     },
     {
@@ -90,13 +125,17 @@ export default function MoreScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Card do Perfil Rápido */}
-          <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/login')}>
+          <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/profile')}>
             <View style={styles.avatar}>
-              <Ionicons name="person" size={32} color={theme.text} />
+              {user?.user_metadata?.avatar_url ? (
+                <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={32} color={theme.text} />
+              )}
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>Carol Silva</Text>
-              <Text style={styles.userEmail}>carol@exemplo.com</Text>
+              <Text style={styles.userName}>{user?.user_metadata?.full_name || 'Usuário FinApp'}</Text>
+              <Text style={styles.userEmail}>{user?.email || 'carregando...'}</Text>
             </View>
             <View style={styles.editBadge}>
               <Text style={styles.editBadgeText}>Editar</Text>
@@ -124,7 +163,7 @@ export default function MoreScreen() {
           {/* Botão Sair */}
           <TouchableOpacity
             style={styles.logoutButton}
-            onPress={() => router.replace('/login')}
+            onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={22} color={theme.danger} />
             <Text style={styles.logoutText}>Sair da Conta</Text>
@@ -177,10 +216,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   profileInfo: {
     flex: 1,
-    marginLeft: 16,
   },
   userName: {
     fontSize: 18,
