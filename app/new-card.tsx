@@ -1,11 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,8 +13,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCardStore } from '../store/cardStore';
@@ -77,9 +76,9 @@ export default function NewCardScreen() {
       const card = cards.find(c => c.id === editId);
       if (card) {
         setName(card.name);
-        setLimit((card.limit * 100).toFixed(0));
-        setClosingDay(card.closingDay.toString());
-        setDueDay(card.dueDay.toString());
+        setLimit((card.credit_limit * 100).toFixed(0));
+        setClosingDay(card.closing_day.toString());
+        setDueDay(card.due_day.toString());
         const colorObj = cardColors.find(c => c.main === card.color) || cardColors[0];
         setSelectedColor(colorObj);
         setSelectedBrand(card.brand);
@@ -104,9 +103,9 @@ export default function NewCardScreen() {
 
     const cardData = {
       name,
-      limit: numericLimit,
-      closingDay: parseInt(closingDay),
-      dueDay: parseInt(dueDay),
+      credit_limit: numericLimit,
+      closing_day: parseInt(closingDay),
+      due_day: parseInt(dueDay),
       color: selectedColor.main,
       brand: selectedBrand,
     };
@@ -120,8 +119,9 @@ export default function NewCardScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (err) {
-      Alert.alert("Erro", "Ocorreu um erro ao salvar o cartão.");
+    } catch (err: any) {
+      console.error("Erro ao salvar cartão:", err);
+      Alert.alert("Erro", `Ocorreu um erro ao salvar o cartão: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -137,8 +137,9 @@ export default function NewCardScreen() {
           try {
             await deleteCard(editId);
             router.back();
-          } catch (err) {
-            Alert.alert("Erro", "Erro ao excluir o cartão.");
+          } catch (err: any) {
+            console.error("Erro ao excluir cartão:", err);
+            Alert.alert("Erro ao Excluir", err.message || "Não foi possível excluir o cartão no momento.");
           } finally {
             setLoading(false);
           }

@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { supabase } from '../src/lib/supabase';
 import { safeStorage } from '../src/lib/storage';
+import { supabase } from '../src/lib/supabase';
 
 export interface CreditCard {
   id: string;
   name: string;
-  limit: number;
-  closingDay: number;
-  dueDay: number;
+  credit_limit: number;
+  closing_day: number;
+  due_day: number;
   color: string;
   brand: string; // ex: 'Visa', 'Mastercard'
   user_id?: string;
@@ -31,62 +31,95 @@ export const useCardStore = create<CardStore>()(
       reset: () => set({ cards: [] }),
 
       fetchCards: async () => {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) return;
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) return;
 
-        const { data, error } = await supabase
-          .from('cards')
-          .select('*')
-          .eq('user_id', user.id);
+          const { data, error } = await supabase
+            .from('cards')
+            .select('*')
+            .eq('user_id', user.id);
 
-        if (error) throw error;
-        if (data) {
-          set({ cards: data });
+          if (error) {
+            console.error("Erro Supabase fetchCards:", error);
+            throw new Error(`Erro ao carregar cartões: ${error.message}`);
+          }
+          if (data) {
+            set({ cards: data });
+          }
+        } catch (err: any) {
+          console.error("Erro catch fetchCards:", err);
+          throw err;
         }
       },
 
       addCard: async (newCard) => {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) throw new Error("Usuário não autenticado");
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) throw new Error("Usuário não autenticado");
 
-        const { data, error } = await supabase
-          .from('cards')
-          .insert([{ ...newCard, user_id: user.id }])
-          .select()
-          .single();
+          const { data, error } = await supabase
+            .from('cards')
+            .insert([{ ...newCard, user_id: user.id }])
+            .select()
+            .single();
 
-        if (error) throw error;
-        if (data) {
-          set((state) => ({
-            cards: [data, ...state.cards]
-          }));
+          if (error) {
+            console.error("Erro Supabase addCard:", error);
+            throw new Error(`Erro ao salvar cartão: ${error.message}`);
+          }
+          
+          if (data) {
+            set((state) => ({
+              cards: [data, ...state.cards]
+            }));
+          }
+        } catch (err: any) {
+          console.error("Erro catch addCard:", err);
+          throw err;
         }
       },
 
       updateCard: async (id, updatedCard) => {
-        const { error } = await supabase
-          .from('cards')
-          .update(updatedCard)
-          .eq('id', id);
+        try {
+          const { error } = await supabase
+            .from('cards')
+            .update(updatedCard)
+            .eq('id', id);
 
-        if (error) throw error;
-        
-        set((state) => ({
-          cards: state.cards.map((c) => c.id === id ? { ...c, ...updatedCard } : c)
-        }));
+          if (error) {
+            console.error("Erro Supabase updateCard:", error);
+            throw new Error(`Erro ao atualizar cartão: ${error.message}`);
+          }
+          
+          set((state) => ({
+            cards: state.cards.map((c) => c.id === id ? { ...c, ...updatedCard } : c)
+          }));
+        } catch (err: any) {
+          console.error("Erro catch updateCard:", err);
+          throw err;
+        }
       },
 
       deleteCard: async (id) => {
-        const { error } = await supabase
-          .from('cards')
-          .delete()
-          .eq('id', id);
+        try {
+          const { error } = await supabase
+            .from('cards')
+            .delete()
+            .eq('id', id);
 
-        if (error) throw error;
+          if (error) {
+            console.error("Erro Supabase deleteCard:", error);
+            throw new Error(`Erro ao excluir cartão: ${error.message}`);
+          }
 
-        set((state) => ({
-          cards: state.cards.filter((c) => c.id !== id)
-        }));
+          set((state) => ({
+            cards: state.cards.filter((c) => c.id !== id)
+          }));
+        } catch (err: any) {
+          console.error("Erro catch deleteCard:", err);
+          throw err;
+        }
       },
     }),
     {

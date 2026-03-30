@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import { format, isToday, isYesterday, parse, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
@@ -249,9 +251,9 @@ export default function TransactionsScreen() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const transactionDate = t.date.includes('/') 
-        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
-        : new Date(t.date);
+      const transactionDate = t.date.includes('/')
+        ? parse(t.date, 'dd/MM/yyyy', new Date())
+        : parseISO(t.date);
 
       const isMonthMatch = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
       const isSearchMatch = t.description.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -265,39 +267,35 @@ export default function TransactionsScreen() {
     const groups: Record<string, Transaction[]> = {};
 
     filteredTransactions.forEach(t => {
-      // Usamos a data formatada como chave para agrupar (ex: "28/03/2026")
-      const displayDate = t.date.includes('/') 
-        ? t.date 
-        : new Date(t.date).toLocaleDateString('pt-BR');
-        
-      if (!groups[displayDate]) groups[displayDate] = [];
-      groups[displayDate].push(t);
+      // Usamos a data ISO para agrupar de forma consistente
+      const dateObj = t.date.includes('/')
+        ? parse(t.date, 'dd/MM/yyyy', new Date())
+        : parseISO(t.date);
+      const groupKey = format(dateObj, 'yyyy-MM-dd');
+
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(t);
     });
 
     return Object.keys(groups)
-      .sort((a, b) => {
-        const [da, ma, ya] = a.split('/').map(Number);
-        const [db, mb, yb] = b.split('/').map(Number);
-        return new Date(yb, mb - 1, db).getTime() - new Date(ya, ma - 1, da).getTime();
-      })
-      .map(date => {
-        const [d, m, y] = date.split('/').map(Number);
-        const dateObj = new Date(y, m - 1, d);
-        const today = new Date();
-        const yesterday = new Date();
-        yesterday.setDate(today.getDate() - 1);
+      .sort((a, b) => b.localeCompare(a))
+      .map(groupKey => {
+        const dateObj = parseISO(groupKey);
 
-        let title = date;
-        if (dateObj.toDateString() === today.toDateString()) title = "Hoje";
-        else if (dateObj.toDateString() === yesterday.toDateString()) title = "Ontem";
-        else {
-          const dayName = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
-          title = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${d}`;
+        let title = '';
+        if (isToday(dateObj)) {
+          title = 'Hoje';
+        } else if (isYesterday(dateObj)) {
+          title = 'Ontem';
+        } else {
+          const dayName = format(dateObj, 'EEEE', { locale: ptBR });
+          const dayNumber = format(dateObj, 'dd');
+          title = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}, ${dayNumber}`;
         }
 
         return {
           title,
-          data: groups[date]
+          data: groups[groupKey]
         };
       });
   }, [filteredTransactions]);

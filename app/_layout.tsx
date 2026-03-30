@@ -1,12 +1,30 @@
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
 import { useTransactionStore } from '../store/transactionStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
+
+// Polyfill para Trusted Types no ambiente Web Preview (Trae)
+if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in window) {
+  try {
+    // @ts-ignore
+    if (!window.trustedTypes.defaultPolicy) {
+      // @ts-ignore
+      window.trustedTypes.createPolicy('default', {
+        createHTML: (string: string) => string,
+        createScript: (string: string) => string,
+        createScriptURL: (string: string) => string,
+      });
+    }
+  } catch (e) {
+    // Falha silenciosa se não puder criar política (ex: já existe ou restrição de CSP)
+  }
+}
 
 export default function RootLayout() {
   const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
@@ -15,19 +33,36 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Escuta mudanças no estado de autenticação
-    supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         // Se houver sessão, carrega os dados da nuvem
         fetchTransactions();
         fetchBudgets();
         fetchCards();
         
-        router.replace('/(tabs)');
-      } else {
-        // Se não houver sessão, vai para o login
-        router.replace('/login');
+        // Redireciona para o app apenas se estiver em telas de auth
+        // Nota: O router.replace só deve ser chamado se não estivermos já no (tabs)
+        // mas para simplificar, deixamos o router lidar com a pilha
+      } else if (event === 'SIGNED_OUT') {
+        // Apenas redireciona para welcome se o evento for explicitamente de logout
+        router.replace('/welcome');
       }
     });
+
+    // Verificação inicial de sessão
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // Se não houver sessão inicial, vai para welcome
+        router.replace('/welcome');
+      } else {
+        fetchTransactions();
+        fetchBudgets();
+        fetchCards();
+        router.replace('/(tabs)');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
@@ -35,6 +70,9 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="cadastro" />
           <Stack.Screen name="(tabs)" />
 
           {/* Modal do botão central flutuante */}

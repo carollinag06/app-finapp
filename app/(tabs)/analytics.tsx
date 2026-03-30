@@ -1,19 +1,20 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { parse, parseISO } from 'date-fns';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Platform
+  View
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTransactionStore } from '../../store/transactionStore';
 import { useBudgetStore } from '../../store/budgetStore';
+import { useTransactionStore } from '../../store/transactionStore';
 
 // --- DIMENSÕES E TEMA ---
 const screenWidth = Dimensions.get('window').width;
@@ -191,8 +192,8 @@ export default function AnalyticsScreen() {
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
       const transactionDate = t.date.includes('/')
-        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
-        : new Date(t.date);
+        ? parse(t.date, 'dd/MM/yyyy', new Date())
+        : parseISO(t.date);
 
       return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
     });
@@ -208,8 +209,8 @@ export default function AnalyticsScreen() {
     }
     return transactions.filter(t => {
       const transactionDate = t.date.includes('/')
-        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
-        : new Date(t.date);
+        ? parse(t.date, 'dd/MM/yyyy', new Date())
+        : parseISO(t.date);
 
       return transactionDate.getMonth() === pm && transactionDate.getFullYear() === py;
     });
@@ -239,6 +240,18 @@ export default function AnalyticsScreen() {
 
   const incomeComparison = getComparison(currentMonthStats.income, prevMonthStats.income);
   const expenseComparison = getComparison(currentMonthStats.expense, prevMonthStats.expense);
+
+  // Médias diárias para exibição no resumo
+  const dailyAverages = useMemo(() => {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
+    const divisor = isCurrentMonth ? Math.max(new Date().getDate(), 1) : daysInMonth;
+
+    return {
+      income: currentMonthStats.income / divisor,
+      expense: currentMonthStats.expense / divisor
+    };
+  }, [currentMonthStats.income, currentMonthStats.expense, currentMonth, currentYear]);
 
   // Transações específicas da aba ativa
   const filteredTransactions = useMemo(() => {
@@ -284,8 +297,8 @@ export default function AnalyticsScreen() {
 
       monthlyTransactions.forEach(t => {
         const transactionDate = t.date.includes('/')
-          ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
-          : new Date(t.date);
+          ? parse(t.date, 'dd/MM/yyyy', new Date())
+          : parseISO(t.date);
         const day = transactionDate.getDate();
         const idx = getIdx(day);
         if (idx < dataPointsCount) {
@@ -314,8 +327,8 @@ export default function AnalyticsScreen() {
     const data = new Array(dataPointsCount).fill(0);
     filteredTransactions.forEach(t => {
       const transactionDate = t.date.includes('/')
-        ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
-        : new Date(t.date);
+        ? parse(t.date, 'dd/MM/yyyy', new Date())
+        : parseISO(t.date);
       const day = transactionDate.getDate();
       const idx = getIdx(day);
       if (idx < dataPointsCount) data[idx] += t.value;
@@ -340,20 +353,27 @@ export default function AnalyticsScreen() {
 
   const rankingData = useMemo(() => {
     const categories: Record<string, number> = {};
-    filteredTransactions.forEach(t => {
+    // Se estiver na aba Geral, mostramos apenas despesas no ranking por categoria para evitar misturar com Salário
+    const transactionsForRanking = activeTab === 'geral'
+      ? monthlyTransactions.filter(t => t.type === 'expense')
+      : filteredTransactions;
+
+    transactionsForRanking.forEach(t => {
       categories[t.category] = (categories[t.category] || 0) + t.value;
     });
+
+    const totalRankingValue = Object.values(categories).reduce((acc, v) => acc + v, 0);
 
     return Object.entries(categories)
       .map(([name, value]) => ({
         name,
         value,
-        percentage: totalValue > 0 ? (value / totalValue) * 100 : 0,
+        percentage: totalRankingValue > 0 ? (value / totalRankingValue) * 100 : 0,
         color: categoryColors[name] || theme.textMuted,
         icon: categoryIcons[name]
       }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, totalValue]);
+  }, [filteredTransactions, monthlyTransactions, activeTab]);
 
   const donutCategoriaData = useMemo(() => {
     return rankingData.map(item => ({
@@ -366,17 +386,29 @@ export default function AnalyticsScreen() {
 
   // INSIGHTS ADICIONAIS
   const insights = useMemo(() => {
-    if (filteredTransactions.length === 0) return null;
+    // Definimos o que analisar baseado na aba ativa (se for 'geral', focamos em despesas para os insights)
+    const isIncomeTab = activeTab === 'receitas';
+    const targetType = isIncomeTab ? 'income' : 'expense';
+    const targetTransactions = monthlyTransactions.filter(t => t.type === targetType);
 
-    const highest = [...filteredTransactions].sort((a, b) => b.value - a.value)[0];
+    if (targetTransactions.length === 0) return null;
+
+    // Maior transação (Gasto ou Receita)
+    const highest = [...targetTransactions].sort((a, b) => b.value - a.value)[0];
+
+    // Cálculo da média diária baseado no total da categoria alvo
+    const totalValueForAvg = isIncomeTab ? currentMonthStats.income : currentMonthStats.expense;
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const dailyAvg = totalValue / (currentMonth === new Date().getMonth() ? new Date().getDate() : daysInMonth);
+    const isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
+    const divisor = isCurrentMonth ? Math.max(new Date().getDate(), 1) : daysInMonth;
+
+    const dailyAvg = totalValueForAvg / divisor;
 
     return {
       highest,
       dailyAvg
     };
-  }, [filteredTransactions, totalValue, currentMonth, currentYear]);
+  }, [monthlyTransactions, currentMonthStats.income, currentMonthStats.expense, activeTab, currentMonth, currentYear]);
 
   const recorrenciaData = useMemo(() => {
     const data: Record<string, number> = { 'Fixas': 0, 'Variáveis': 0, 'Parceladas': 0 };
@@ -472,6 +504,26 @@ export default function AnalyticsScreen() {
           </View>
         ) : (
           <>
+            {/* NOVO: Total da aba ativa (Receita ou Despesa) */}
+            {activeTab !== 'geral' && (
+              <View style={[styles.totalTabCard, { borderColor: activeTab === 'receitas' ? `${theme.success}30` : `${theme.danger}30` }]}>
+                <View style={[styles.totalTabIconBg, { backgroundColor: activeTab === 'receitas' ? theme.successLight : theme.dangerLight }]}>
+                  <Ionicons
+                    name={activeTab === 'receitas' ? "trending-up" : "trending-down"}
+                    size={24}
+                    color={activeTab === 'receitas' ? theme.success : theme.danger}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.totalTabLabel}>Total de {activeTab === 'receitas' ? 'Receitas' : 'Despesas'}</Text>
+                  <Text style={[styles.totalTabValue, { color: activeTab === 'receitas' ? theme.success : theme.danger }]}>
+                    R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Text>
+                  <Text style={styles.totalTabSubValue}>Média: R$ {dailyAverages[activeTab === 'receitas' ? 'income' : 'expense'].toLocaleString('pt-BR', { maximumFractionDigits: 0 })} / dia</Text>
+                </View>
+              </View>
+            )}
+
             {/* CARD 1: Evolução (Linha) */}
             <ChartCard
               title={activeTab === 'geral' ? "Fluxo de Caixa" : `Histórico de ${activeTab === 'receitas' ? 'Receitas' : 'Despesas'}`}
@@ -515,6 +567,7 @@ export default function AnalyticsScreen() {
                     <Text style={[styles.summaryValue, { color: theme.success }]}>
                       R$ {currentMonthStats.income.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
                     </Text>
+                    <Text style={styles.summaryDailyAvg}>Média: R$ {dailyAverages.income.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/dia</Text>
                     <View style={styles.comparisonRow}>
                       <Ionicons
                         name={incomeComparison.improved ? "arrow-up" : "arrow-down"}
@@ -535,6 +588,7 @@ export default function AnalyticsScreen() {
                     <Text style={[styles.summaryValue, { color: theme.danger }]}>
                       R$ {currentMonthStats.expense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
                     </Text>
+                    <Text style={styles.summaryDailyAvg}>Média: R$ {dailyAverages.expense.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/dia</Text>
                     <View style={styles.comparisonRow}>
                       <Ionicons
                         name={expenseComparison.improved ? "arrow-up" : "arrow-down"}
@@ -674,7 +728,7 @@ export default function AnalyticsScreen() {
                     <View style={[styles.insightIconBg, { backgroundColor: `${theme.info}20` }]}>
                       <Ionicons name="calculator" size={16} color={theme.info} />
                     </View>
-                    <Text style={styles.insightLabel}>Média Diária</Text>
+                    <Text style={styles.insightLabel}>Média Diária ({activeTab === 'receitas' ? 'Receitas' : 'Gastos'})</Text>
                     <Text style={styles.insightValue}>R$ {insights.dailyAvg.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</Text>
                     <Text style={styles.insightSubValue}>Este mês</Text>
                   </View>
@@ -1013,8 +1067,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  summaryDailyAvg: {
+    fontSize: 11,
+    color: theme.textMuted,
     marginBottom: 8,
   },
   comparisonRow: {
@@ -1025,6 +1084,39 @@ const styles = StyleSheet.create({
   comparisonText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  // Total Tab Card
+  totalTabCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  totalTabIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  totalTabLabel: {
+    color: theme.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  totalTabValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  totalTabSubValue: {
+    fontSize: 13,
+    color: theme.textMuted,
   },
   // Empty State
   emptyStateContainer: {

@@ -2,8 +2,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -51,7 +51,25 @@ export default function LoginScreen() {
     });
 
     if (error) {
-      Alert.alert('Erro no Login', error.message);
+      console.error("Erro no Login:", error);
+      let errorMessage = "Ocorreu um erro ao tentar entrar. Verifique sua conexão.";
+
+      // Mapeamento de erros específicos do Supabase
+      const errorMsg = error.message.toLowerCase();
+
+      if (errorMsg.includes("invalid login credentials")) {
+        errorMessage = "E-mail ou senha incorretos. Verifique seus dados e tente novamente.";
+      } else if (errorMsg.includes("email not confirmed")) {
+        errorMessage = "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada para ativar a conta.";
+      } else if (errorMsg.includes("rate limit exceeded")) {
+        errorMessage = "Muitas tentativas seguidas. Por favor, aguarde alguns minutos.";
+      } else if (errorMsg.includes("user not found")) {
+        errorMessage = "Não encontramos uma conta com este e-mail. Verifique se digitou corretamente ou crie uma nova conta.";
+      } else if (errorMsg.includes("invalid email")) {
+        errorMessage = "O formato do e-mail digitado é inválido.";
+      }
+
+      Alert.alert('Erro no Login', errorMessage);
       setLoading(false);
     } else {
       router.replace('/(tabs)');
@@ -67,9 +85,10 @@ export default function LoginScreen() {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
 
     if (error) {
-      Alert.alert('Erro', error.message);
+      console.error("Erro ao recuperar senha:", error);
+      Alert.alert('Erro na Recuperação', error.message || "Não foi possível enviar o e-mail de recuperação no momento.");
     } else {
-      Alert.alert('Sucesso', 'Um e-mail de recuperação foi enviado para o seu endereço.');
+      Alert.alert('Sucesso', 'Um e-mail de recuperação foi enviado para o seu endereço. Verifique também sua caixa de spam.');
     }
   };
 

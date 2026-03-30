@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -82,14 +82,31 @@ export default function RegisterScreen() {
     });
 
     if (error) {
-      Alert.alert("Erro no Cadastro", error.message);
+      console.error("Erro no Cadastro:", error);
+      let errorMessage = "Não foi possível realizar o cadastro no momento. Tente novamente mais tarde.";
+
+      const errorMsg = error.message.toLowerCase();
+
+      if (errorMsg.includes("user already registered") || errorMsg.includes("unique constraint")) {
+        errorMessage = "Este e-mail já está sendo usado por outra conta. Tente fazer login.";
+      } else if (errorMsg.includes("password should be at least")) {
+        errorMessage = "A senha é muito curta. Ela deve ter pelo menos 6 caracteres para sua segurança.";
+      } else if (errorMsg.includes("rate limit exceeded")) {
+        errorMessage = "Muitas tentativas seguidas para criar conta. Por favor, aguarde alguns minutos.";
+      } else if (errorMsg.includes("invalid email")) {
+        errorMessage = "O e-mail digitado não parece ser válido. Verifique o formato.";
+      } else if (errorMsg.includes("weak_password")) {
+        errorMessage = "A senha digitada é muito fraca. Tente misturar letras e números.";
+      }
+
+      Alert.alert("Erro no Cadastro", errorMessage);
       setLoading(false);
     } else {
       // Se precisar de confirmação de e-mail, avise o usuário
       if (data.session) {
         router.replace('/(tabs)');
       } else {
-        Alert.alert("Sucesso", "Cadastro realizado! Por favor, verifique seu e-mail para confirmar a conta.", [
+        Alert.alert("Sucesso", "Cadastro realizado com sucesso! Por favor, verifique seu e-mail para confirmar a conta e poder acessar o app.", [
           { text: "OK", onPress: () => router.replace('/login') }
         ]);
       }

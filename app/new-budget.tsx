@@ -92,8 +92,9 @@ export default function NewBudgetScreen() {
         await addBudget({ category, amount: numericAmount, icon, color, period: 'monthly' });
       }
       router.back();
-    } catch (err) {
-      Alert.alert("Erro", "Ocorreu um erro ao salvar a meta.");
+    } catch (err: any) {
+      console.error("Erro ao salvar meta:", err);
+      Alert.alert("Erro ao Salvar", err.message || "Ocorreu um erro inesperado ao salvar sua meta.");
     } finally {
       setLoading(false);
     }
@@ -117,8 +118,9 @@ export default function NewBudgetScreen() {
           try {
             await deleteBudget(editId);
             router.back();
-          } catch (err) {
-            Alert.alert("Erro", "Erro ao excluir a meta.");
+          } catch (err: any) {
+            console.error("Erro ao excluir meta:", err);
+            Alert.alert("Erro ao Excluir", err.message || "Não foi possível excluir a meta no momento.");
           } finally {
             setLoading(false);
           }

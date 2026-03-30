@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import { safeStorage } from './storage';
 
 const supabaseUrl = 'https://opwxhabvyjbpqbbgsvsw.supabase.co';
@@ -10,6 +11,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: safeStorage as any,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: Platform.OS === 'web', // Habilitado na Web para capturar tokens da URL
   },
 });

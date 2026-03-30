@@ -1,10 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState, useMemo, useCallback, memo, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,8 +16,8 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTransactionStore } from '../store/transactionStore';
 import { useCardStore } from '../store/cardStore';
+import { useTransactionStore } from '../store/transactionStore';
 
 // --- TEMA (Sincronizado com Analytics) ---
 const theme = {
@@ -215,7 +215,7 @@ export default function NewTransactionScreen() {
       type: transactionType,
       category: categoryName,
       date,
-      paymentMethod,
+      paymentMethod: paymentMethod,
       cardId: paymentMethod === 'credit' ? selectedCardId || undefined : undefined,
       recurrence,
     };
@@ -231,7 +231,8 @@ export default function NewTransactionScreen() {
 
       router.back();
     } catch (err: any) {
-      Alert.alert("Erro", err.message || "Ocorreu um erro inesperado ao salvar.");
+      console.error("Erro ao salvar transação:", err);
+      Alert.alert("Erro ao Salvar", err.message || "Ocorreu um erro inesperado ao salvar a transação. Verifique sua conexão.");
     } finally {
       setLoading(false);
     }

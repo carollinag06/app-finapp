@@ -30,62 +30,94 @@ export const useBudgetStore = create<BudgetStore>()(
       reset: () => set({ budgets: [] }),
 
       fetchBudgets: async () => {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) return;
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) return;
 
-        const { data, error } = await supabase
-          .from('budgets')
-          .select('*')
-          .eq('user_id', user.id);
+          const { data, error } = await supabase
+            .from('budgets')
+            .select('*')
+            .eq('user_id', user.id);
 
-        if (error) throw error;
-        if (data) {
-          set({ budgets: data });
+          if (error) {
+            console.error("Erro Supabase fetchBudgets:", error);
+            throw new Error(`Erro ao carregar orçamentos: ${error.message}`);
+          }
+          if (data) {
+            set({ budgets: data });
+          }
+        } catch (err: any) {
+          console.error("Erro catch fetchBudgets:", err);
+          throw err;
         }
       },
 
       addBudget: async (newBudget) => {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) throw new Error("Usuário não autenticado");
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) throw new Error("Usuário não autenticado");
 
-        const { data, error } = await supabase
-          .from('budgets')
-          .insert([{ ...newBudget, user_id: user.id }])
-          .select()
-          .single();
+          const { data, error } = await supabase
+            .from('budgets')
+            .insert([{ ...newBudget, user_id: user.id }])
+            .select()
+            .single();
 
-        if (error) throw error;
-        if (data) {
-          set((state) => ({
-            budgets: [data, ...state.budgets]
-          }));
+          if (error) {
+            console.error("Erro Supabase addBudget:", error);
+            throw new Error(`Erro ao salvar orçamento: ${error.message}`);
+          }
+          if (data) {
+            set((state) => ({
+              budgets: [data, ...state.budgets]
+            }));
+          }
+        } catch (err: any) {
+          console.error("Erro catch addBudget:", err);
+          throw err;
         }
       },
 
       updateBudget: async (id, updatedBudget) => {
-        const { error } = await supabase
-          .from('budgets')
-          .update(updatedBudget)
-          .eq('id', id);
+        try {
+          const { error } = await supabase
+            .from('budgets')
+            .update(updatedBudget)
+            .eq('id', id);
 
-        if (error) throw error;
-        
-        set((state) => ({
-          budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updatedBudget } : b)
-        }));
+          if (error) {
+            console.error("Erro Supabase updateBudget:", error);
+            throw new Error(`Erro ao atualizar orçamento: ${error.message}`);
+          }
+
+          set((state) => ({
+            budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updatedBudget } : b)
+          }));
+        } catch (err: any) {
+          console.error("Erro catch updateBudget:", err);
+          throw err;
+        }
       },
 
       deleteBudget: async (id) => {
-        const { error } = await supabase
-          .from('budgets')
-          .delete()
-          .eq('id', id);
+        try {
+          const { error } = await supabase
+            .from('budgets')
+            .delete()
+            .eq('id', id);
 
-        if (error) throw error;
+          if (error) {
+            console.error("Erro Supabase deleteBudget:", error);
+            throw new Error(`Erro ao excluir orçamento: ${error.message}`);
+          }
 
-        set((state) => ({
-          budgets: state.budgets.filter((b) => b.id !== id)
-        }));
+          set((state) => ({
+            budgets: state.budgets.filter((b) => b.id !== id)
+          }));
+        } catch (err: any) {
+          console.error("Erro catch deleteBudget:", err);
+          throw err;
+        }
       },
     }),
     {

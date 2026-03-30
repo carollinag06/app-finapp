@@ -140,7 +140,8 @@ export default function ProfileScreen() {
     });
 
     if (error) {
-      Alert.alert("Erro ao atualizar perfil", error.message);
+      console.error("Erro ao atualizar perfil:", error);
+      Alert.alert("Erro ao Atualizar", error.message || "Não foi possível atualizar suas informações no momento.");
     } else {
       Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
     }
@@ -154,11 +155,18 @@ export default function ProfileScreen() {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          await supabase.auth.signOut();
-          resetTransactions();
-          resetBudgets();
-          resetCards();
-          router.replace('/login');
+          try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            
+            resetTransactions();
+            resetBudgets();
+            resetCards();
+            router.replace('/login');
+          } catch (err: any) {
+            console.error("Erro ao fazer logout:", err);
+            Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair. Tente novamente.");
+          }
         }
       }
     ]);

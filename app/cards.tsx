@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React from 'react';
@@ -8,11 +8,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Platform,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCardStore, CreditCard } from '../store/cardStore';
+import { CreditCard, useCardStore } from '../store/cardStore';
 
 const theme = {
   bg: '#0F0F12',
@@ -55,7 +54,7 @@ const CardItem = ({ card, onEdit, onDelete }: { card: CreditCard, onEdit: (id: s
             <Text style={styles.cardName}>{card.name.toUpperCase()}</Text>
             <Text style={styles.cardLimitLabel}>LIMITE TOTAL</Text>
             <Text style={styles.cardLimitValue}>
-              R$ {card.limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </Text>
           </View>
 
@@ -63,11 +62,11 @@ const CardItem = ({ card, onEdit, onDelete }: { card: CreditCard, onEdit: (id: s
             <View style={styles.cardDates}>
               <View style={styles.dateInfo}>
                 <Text style={styles.dateLabel}>FECHA</Text>
-                <Text style={styles.dateValue}>{card.closingDay.toString().padStart(2, '0')}</Text>
+                <Text style={styles.dateValue}>{card.closing_day.toString().padStart(2, '0')}</Text>
               </View>
               <View style={styles.dateInfo}>
                 <Text style={styles.dateLabel}>VENCE</Text>
-                <Text style={styles.dateValue}>{card.dueDay.toString().padStart(2, '0')}</Text>
+                <Text style={styles.dateValue}>{card.due_day.toString().padStart(2, '0')}</Text>
               </View>
             </View>
 

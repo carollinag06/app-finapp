@@ -1,4 +1,6 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { format, isToday, isYesterday, parse, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
 import React, { ComponentProps, useEffect, useMemo, useState } from 'react';
 import {
@@ -13,9 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- IMPORTAMOS O NOSSO STORE ---
-import { useTransactionStore } from '../../store/transactionStore';
-import { useBudgetStore } from '../../store/budgetStore';
 import { supabase } from '../../src/lib/supabase';
+import { useBudgetStore } from '../../store/budgetStore';
+import { useTransactionStore } from '../../store/transactionStore';
 
 // --- TIPAGEM ---
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
@@ -254,7 +256,22 @@ const TransacoesRecentes = ({ transactions }: { transactions: any[] }) => (
               </View>
               <View style={styles.transactionInfo}>
                 <Text style={styles.transactionTitle} numberOfLines={1}>{t.description}</Text>
-                <Text style={styles.transactionSubtitle}>{t.category} • {t.date}</Text>
+                <Text style={styles.transactionSubtitle}>
+                  {t.category} • {(() => {
+                    try {
+                      const date = t.date.includes('/')
+                        ? parse(t.date, 'dd/MM/yyyy', new Date())
+                        : parseISO(t.date);
+
+                      if (isToday(date)) return 'Hoje';
+                      if (isYesterday(date)) return 'Ontem';
+
+                      return format(date, "dd 'de' MMMM", { locale: ptBR });
+                    } catch (e) {
+                      return t.date;
+                    }
+                  })()}
+                </Text>
               </View>
               <View style={styles.transactionValueContainer}>
                 <Text style={[styles.transactionValueText, { color: isIncome ? theme.success : theme.text }]}>
