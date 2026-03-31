@@ -13,14 +13,16 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
-import { useTransactionStore } from '../store/transactionStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
+import { useCategoryStore } from '../store/categoryStore';
+import { useTransactionStore } from '../store/transactionStore';
+
+import { User } from '@supabase/supabase-js';
 
 // --- TEMA ---
 const theme = {
@@ -37,10 +39,9 @@ const MAX_WIDTH = 600;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export default function ProfileScreen() {
   const resetTransactions = useTransactionStore(state => state.reset);
   const resetBudgets = useBudgetStore(state => state.reset);
   const resetCards = useCardStore(state => state.reset);
+  const resetCategories = useCategoryStore((state) => state.resetCategories);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -74,7 +76,7 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets[0].uri) {
         uploadAvatar(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Erro", "Não foi possível selecionar a imagem.");
     }
   };
@@ -94,7 +96,7 @@ export default function ProfileScreen() {
       const blob = await response.blob();
       const arrayBuffer = await new Response(blob).arrayBuffer();
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, arrayBuffer, {
           contentType: `image/${fileExt}`,
@@ -117,9 +119,10 @@ export default function ProfileScreen() {
       if (updateError) throw updateError;
 
       Alert.alert("Sucesso", "Foto de perfil atualizada!");
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro no upload:', error);
-      Alert.alert("Erro no Upload", error.message || "Não foi possível enviar a foto. Verifique se o bucket 'avatars' existe no Supabase.");
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível enviar a foto. Verifique se o bucket 'avatars' existe no Supabase.";
+      Alert.alert("Erro no Upload", errorMessage);
     } finally {
       setUploading(false);
     }
@@ -158,21 +161,20 @@ export default function ProfileScreen() {
           try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
-            
+
             resetTransactions();
             resetBudgets();
             resetCards();
+            resetCategories();
             router.replace('/login');
-          } catch (err: any) {
-            console.error("Erro ao fazer logout:", err);
+          } catch {
+            console.error("Erro ao fazer logout");
             Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair. Tente novamente.");
           }
         }
       }
     ]);
   };
-
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -247,6 +249,15 @@ export default function ProfileScreen() {
                 ) : (
                   <Text style={styles.saveButtonText}>Salvar Alterações</Text>
                 )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.logoutButton, { borderColor: theme.border, marginTop: 8 }]}
+                onPress={() => router.push('/categories' as any)}
+                disabled={loading || uploading}
+              >
+                <Ionicons name="pricetags-outline" size={20} color={theme.textMuted} style={{ marginRight: 8 }} />
+                <Text style={[styles.logoutButtonText, { color: theme.textMuted }]}>Gerenciar Categorias</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

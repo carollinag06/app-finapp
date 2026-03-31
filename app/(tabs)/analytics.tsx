@@ -1,7 +1,7 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { parse, parseISO } from 'date-fns';
-import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   Platform,
@@ -12,8 +12,10 @@ import {
   View
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetStore } from '../../store/budgetStore';
+import { useCategoryStore } from '../../store/categoryStore';
 import { useTransactionStore } from '../../store/transactionStore';
 
 // --- DIMENSÕES E TEMA ---
@@ -43,34 +45,6 @@ const monthNames = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
-const categoryIcons: Record<string, any> = {
-  'Moradia': 'home-outline',
-  'Alimentação': 'fast-food-outline',
-  'Transporte': 'car-outline',
-  'Saúde': 'heart-outline',
-  'Lazer': 'game-controller-outline',
-  'Educação': 'book-outline',
-  'Salário': 'cash-outline',
-  'Investimento': 'trending-up-outline',
-  'Freelance': 'laptop-outline',
-  'Presente': 'gift-outline',
-  'Outros': 'ellipsis-horizontal-outline',
-};
-
-const categoryColors: Record<string, string> = {
-  'Moradia': '#FF9F0A', // Laranja
-  'Alimentação': '#FF453A', // Vermelho
-  'Transporte': '#64D2FF', // Azul
-  'Saúde': '#32D74B', // Verde
-  'Lazer': '#BF5AF2', // Roxo
-  'Educação': '#5E5CE6', // Indigo
-  'Salário': '#30D158', // Verde (Receita)
-  'Investimento': '#0A84FF', // Azul (Invest)
-  'Freelance': '#FF375F', // Rosa
-  'Presente': '#FFD60A', // Amarelo
-  'Outros': theme.textMuted,
-};
-
 // --- COMPONENTES MENORES ---
 
 const Header = () => (
@@ -85,7 +59,14 @@ const Header = () => (
   </View>
 );
 
-const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: any) => (
+interface MonthSelectorProps {
+  currentMonth: number;
+  currentYear: number;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: MonthSelectorProps) => (
   <View style={styles.monthSelectorContainer}>
     <View style={styles.monthSelector}>
       <TouchableOpacity style={styles.monthArrow} onPress={onPrev}>
@@ -114,8 +95,21 @@ const ChartCard = ({ title, children, subtitle }: { title: string, children: Rea
   </View>
 );
 
+interface DonutData {
+  name: string;
+  population: number;
+  color: string;
+  legendFontColor: string;
+}
+
+interface DonutChartProps {
+  data: DonutData[];
+  centerText: string;
+  centerSubtext?: string;
+}
+
 // O NOVO COMPONENTE DONUT CHART (Centrado perfeitamente)
-const DonutChart = ({ data, centerText, centerSubtext }: any) => {
+const DonutChart = ({ data, centerText, centerSubtext }: DonutChartProps) => {
   const chartSize = 180;
 
   return (
@@ -143,7 +137,7 @@ const DonutChart = ({ data, centerText, centerSubtext }: any) => {
       </View>
 
       <View style={styles.customLegendContainer}>
-        {data.map((item: any, index: number) => (
+        {data.map((item, index) => (
           <View key={index} style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: item.color }]} />
             <Text style={styles.legendText} numberOfLines={1}>
@@ -156,12 +150,20 @@ const DonutChart = ({ data, centerText, centerSubtext }: any) => {
   );
 };
 
+interface RankingBarProps {
+  label: string;
+  value: string;
+  percentage: number;
+  color: string;
+  icon?: string;
+}
+
 // Barra de progresso para o Ranking
-const RankingBar = ({ label, value, percentage, color, icon }: any) => (
+const RankingBar = ({ label, value, percentage, color, icon }: RankingBarProps) => (
   <View style={styles.rankingItem}>
     <View style={styles.rankingIconContainer}>
       <View style={[styles.categoryIconBg, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={icon || 'ellipsis-horizontal-outline'} size={18} color={color} />
+        <Ionicons name={(icon as any) || 'ellipsis-horizontal-outline'} size={18} color={color} />
       </View>
     </View>
     <View style={{ flex: 1 }}>
@@ -179,14 +181,38 @@ const RankingBar = ({ label, value, percentage, color, icon }: any) => (
 // --- TELA PRINCIPAL ---
 
 export default function AnalyticsScreen() {
+  const { tab } = useLocalSearchParams<{ tab: string }>();
   const [activeFilter, setActiveFilter] = useState('mensal');
-  const [activeTab, setActiveTab] = useState('geral'); // 'geral' | 'despesas' | 'receitas'
+  const [activeTab, setActiveTab] = useState('geral'); // 'geral' | 'despesas' | 'receitas' | 'cartao'
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    if (tab && (tab === 'geral' || tab === 'despesas' || tab === 'receitas' || tab === 'cartao')) {
+      setActiveTab(tab);
+    }
+  }, [tab]);
+
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
+  const categories = useCategoryStore((state) => state.categories);
+
+  const categoryIcons = useMemo(() => {
+    const icons: Record<string, string> = {};
+    categories.forEach(c => {
+      icons[c.name] = c.icon;
+    });
+    return icons;
+  }, [categories]);
+
+  const categoryColors = useMemo(() => {
+    const colors: Record<string, string> = {};
+    categories.forEach(c => {
+      colors[c.name] = c.color;
+    });
+    return colors;
+  }, [categories]);
 
   // Transações filtradas por mês/ano
   const monthlyTransactions = useMemo(() => {
@@ -256,6 +282,7 @@ export default function AnalyticsScreen() {
   // Transações específicas da aba ativa
   const filteredTransactions = useMemo(() => {
     if (activeTab === 'geral') return monthlyTransactions;
+    if (activeTab === 'cartao') return monthlyTransactions.filter(t => t.paymentMethod === 'credit');
     const targetType = activeTab === 'despesas' ? 'expense' : 'income';
     return monthlyTransactions.filter(t => t.type === targetType);
   }, [monthlyTransactions, activeTab]);
@@ -338,7 +365,11 @@ export default function AnalyticsScreen() {
       labels,
       datasets: [{
         data: data.map(v => v || 0),
-        color: (opacity = 1) => activeTab === 'receitas' ? theme.success : theme.danger,
+        color: (opacity = 1) => {
+          if (activeTab === 'receitas') return theme.success;
+          if (activeTab === 'cartao') return theme.warning;
+          return theme.danger;
+        },
         strokeWidth: 3
       }]
     };
@@ -353,12 +384,17 @@ export default function AnalyticsScreen() {
 
   const rankingData = useMemo(() => {
     const categories: Record<string, number> = {};
-    // Se estiver na aba Geral, mostramos apenas despesas no ranking por categoria para evitar misturar com Salário
-    const transactionsForRanking = activeTab === 'geral'
+    // Se estiver na aba Geral ou Cartão, mostramos apenas despesas/gastos no ranking
+    const transactionsForRanking = (activeTab === 'geral' || activeTab === 'cartao')
       ? monthlyTransactions.filter(t => t.type === 'expense')
       : filteredTransactions;
 
-    transactionsForRanking.forEach(t => {
+    // Se estiver na aba cartao, filtramos apenas os gastos de cartao
+    const finalTransactions = activeTab === 'cartao'
+      ? transactionsForRanking.filter(t => t.paymentMethod === 'credit')
+      : transactionsForRanking;
+
+    finalTransactions.forEach(t => {
       categories[t.category] = (categories[t.category] || 0) + t.value;
     });
 
@@ -373,7 +409,7 @@ export default function AnalyticsScreen() {
         icon: categoryIcons[name]
       }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, monthlyTransactions, activeTab]);
+  }, [filteredTransactions, monthlyTransactions, activeTab, categoryColors, categoryIcons]);
 
   const donutCategoriaData = useMemo(() => {
     return rankingData.map(item => ({
@@ -386,18 +422,27 @@ export default function AnalyticsScreen() {
 
   // INSIGHTS ADICIONAIS
   const insights = useMemo(() => {
-    // Definimos o que analisar baseado na aba ativa (se for 'geral', focamos em despesas para os insights)
-    const isIncomeTab = activeTab === 'receitas';
-    const targetType = isIncomeTab ? 'income' : 'expense';
-    const targetTransactions = monthlyTransactions.filter(t => t.type === targetType);
+    // Definimos o que analisar baseado na aba ativa
+    let targetTransactions = monthlyTransactions;
+
+    if (activeTab === 'receitas') {
+      targetTransactions = monthlyTransactions.filter(t => t.type === 'income');
+    } else if (activeTab === 'cartao') {
+      targetTransactions = monthlyTransactions.filter(t => t.paymentMethod === 'credit');
+    } else if (activeTab === 'despesas') {
+      targetTransactions = monthlyTransactions.filter(t => t.type === 'expense');
+    } else {
+      // Geral: focamos em despesas para os insights
+      targetTransactions = monthlyTransactions.filter(t => t.type === 'expense');
+    }
 
     if (targetTransactions.length === 0) return null;
 
     // Maior transação (Gasto ou Receita)
     const highest = [...targetTransactions].sort((a, b) => b.value - a.value)[0];
 
-    // Cálculo da média diária baseado no total da categoria alvo
-    const totalValueForAvg = isIncomeTab ? currentMonthStats.income : currentMonthStats.expense;
+    // Cálculo da média diária
+    const totalValueForAvg = targetTransactions.reduce((acc, t) => acc + t.value, 0);
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
     const divisor = isCurrentMonth ? Math.max(new Date().getDate(), 1) : daysInMonth;
@@ -408,7 +453,7 @@ export default function AnalyticsScreen() {
       highest,
       dailyAvg
     };
-  }, [monthlyTransactions, currentMonthStats.income, currentMonthStats.expense, activeTab, currentMonth, currentYear]);
+  }, [monthlyTransactions, activeTab, currentMonth, currentYear]);
 
   const recorrenciaData = useMemo(() => {
     const data: Record<string, number> = { 'Fixas': 0, 'Variáveis': 0, 'Parceladas': 0 };
@@ -446,20 +491,24 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Header />
+      <Animated.View entering={FadeInUp.duration(800)}>
+        <Header />
+      </Animated.View>
 
-      <MonthSelector
-        currentMonth={currentMonth}
-        currentYear={currentYear}
-        onPrev={handlePrevMonth}
-        onNext={handleNextMonth}
-      />
+      <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+        <MonthSelector
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          onPrev={handlePrevMonth}
+          onNext={handleNextMonth}
+        />
+      </Animated.View>
 
       {/* NAVEGAÇÃO SUPERIOR (Sub-tabs) */}
-      <View style={styles.subTabsWrapper}>
-        <View style={styles.subTabsContainer}>
+      <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.subTabsWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsContainer}>
           <TouchableOpacity style={[styles.subTabItem, activeTab === 'geral' && styles.subTabItemActive]} onPress={() => setActiveTab('geral')}>
-            <Text style={[styles.subTabText, activeTab === 'geral' && styles.subTabTextActive]}>Visão Geral</Text>
+            <Text style={[styles.subTabText, activeTab === 'geral' && styles.subTabTextActive]}>Geral</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.subTabItem, activeTab === 'despesas' && styles.subTabItemActive]} onPress={() => setActiveTab('despesas')}>
@@ -469,96 +518,117 @@ export default function AnalyticsScreen() {
           <TouchableOpacity style={[styles.subTabItem, activeTab === 'receitas' && styles.subTabItemActive]} onPress={() => setActiveTab('receitas')}>
             <Text style={[styles.subTabText, activeTab === 'receitas' && styles.subTabTextActive]}>Receitas</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+
+          <TouchableOpacity style={[styles.subTabItem, activeTab === 'cartao' && styles.subTabItemActive]} onPress={() => setActiveTab('cartao')}>
+            <Text style={[styles.subTabText, activeTab === 'cartao' && styles.subTabTextActive]}>Cartão</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Animated.View>
 
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Filtros em formato de Pill */}
-        <View style={styles.filtersContainer}>
-          <TouchableOpacity
-            style={[styles.filterPill, activeFilter === 'mensal' && styles.filterPillActive]}
-            onPress={() => setActiveFilter('mensal')}
-          >
-            <Ionicons name="calendar-outline" size={14} color={activeFilter === 'mensal' ? theme.primary : theme.textMuted} />
-            <Text style={[styles.filterText, activeFilter === 'mensal' && styles.filterTextActive]}>Mês</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterPill, activeFilter === 'diaria' && styles.filterPillActive]}
-            onPress={() => setActiveFilter('diaria')}
-          >
-            <Ionicons name="time-outline" size={14} color={activeFilter === 'diaria' ? theme.primary : theme.textMuted} />
-            <Text style={[styles.filterText, activeFilter === 'diaria' && styles.filterTextActive]}>Dia a Dia</Text>
-          </TouchableOpacity>
-        </View>
+        <Animated.View entering={FadeInDown.delay(600).duration(800)}>
+          <View style={styles.filtersContainer}>
+            <TouchableOpacity
+              style={[styles.filterPill, activeFilter === 'mensal' && styles.filterPillActive]}
+              onPress={() => setActiveFilter('mensal')}
+            >
+              <Ionicons name="calendar-outline" size={14} color={activeFilter === 'mensal' ? theme.primary : theme.textMuted} />
+              <Text style={[styles.filterText, activeFilter === 'mensal' && styles.filterTextActive]}>Mês</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterPill, activeFilter === 'diaria' && styles.filterPillActive]}
+              onPress={() => setActiveFilter('diaria')}
+            >
+              <Ionicons name="time-outline" size={14} color={activeFilter === 'diaria' ? theme.primary : theme.textMuted} />
+              <Text style={[styles.filterText, activeFilter === 'diaria' && styles.filterTextActive]}>Dia a Dia</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
 
         {monthlyTransactions.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
+          <Animated.View entering={FadeIn.delay(800)} style={styles.emptyStateContainer}>
             <View style={styles.emptyStateIconBg}>
               <MaterialCommunityIcons name="chart-bar" size={48} color={theme.textMuted} />
             </View>
             <Text style={styles.emptyStateTitle}>Nenhum dado este mês</Text>
             <Text style={styles.emptyStateSubtitle}>Adicione transações para ver suas estatísticas aqui.</Text>
-          </View>
+          </Animated.View>
         ) : (
           <>
-            {/* NOVO: Total da aba ativa (Receita ou Despesa) */}
+            {/* NOVO: Total da aba ativa (Receita ou Despesa ou Cartão) */}
             {activeTab !== 'geral' && (
-              <View style={[styles.totalTabCard, { borderColor: activeTab === 'receitas' ? `${theme.success}30` : `${theme.danger}30` }]}>
-                <View style={[styles.totalTabIconBg, { backgroundColor: activeTab === 'receitas' ? theme.successLight : theme.dangerLight }]}>
+              <Animated.View entering={FadeInDown.delay(800).duration(800)} style={[
+                styles.totalTabCard,
+                { borderColor: activeTab === 'receitas' ? `${theme.success}30` : activeTab === 'cartao' ? `${theme.warning}30` : `${theme.danger}30` }
+              ]}>
+                <View style={[
+                  styles.totalTabIconBg,
+                  { backgroundColor: activeTab === 'receitas' ? theme.successLight : activeTab === 'cartao' ? 'rgba(255, 214, 10, 0.15)' : theme.dangerLight }
+                ]}>
                   <Ionicons
-                    name={activeTab === 'receitas' ? "trending-up" : "trending-down"}
+                    name={activeTab === 'receitas' ? "trending-up" : activeTab === 'cartao' ? "card-outline" : "trending-down"}
                     size={24}
-                    color={activeTab === 'receitas' ? theme.success : theme.danger}
+                    color={activeTab === 'receitas' ? theme.success : activeTab === 'cartao' ? theme.warning : theme.danger}
                   />
                 </View>
                 <View>
-                  <Text style={styles.totalTabLabel}>Total de {activeTab === 'receitas' ? 'Receitas' : 'Despesas'}</Text>
-                  <Text style={[styles.totalTabValue, { color: activeTab === 'receitas' ? theme.success : theme.danger }]}>
+                  <Text style={styles.totalTabLabel}>
+                    Total de {activeTab === 'receitas' ? 'Receitas' : activeTab === 'cartao' ? 'Gastos no Cartão' : 'Despesas'}
+                  </Text>
+                  <Text style={[styles.totalTabValue, { color: activeTab === 'receitas' ? theme.success : activeTab === 'cartao' ? theme.warning : theme.danger }]}>
                     R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </Text>
-                  <Text style={styles.totalTabSubValue}>Média: R$ {dailyAverages[activeTab === 'receitas' ? 'income' : 'expense'].toLocaleString('pt-BR', { maximumFractionDigits: 0 })} / dia</Text>
+                  <Text style={styles.totalTabSubValue}>
+                    Média: R$ {(() => {
+                      const avg = activeTab === 'receitas' ? dailyAverages.income : activeTab === 'cartao' ? (totalValue / Math.max(new Date().getDate(), 1)) : dailyAverages.expense;
+                      return avg.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+                    })()} / dia
+                  </Text>
                 </View>
-              </View>
+              </Animated.View>
             )}
 
             {/* CARD 1: Evolução (Linha) */}
-            <ChartCard
-              title={activeTab === 'geral' ? "Fluxo de Caixa" : `Histórico de ${activeTab === 'receitas' ? 'Receitas' : 'Despesas'}`}
-              subtitle={activeFilter === 'mensal' ? "Visão mensal agrupada" : "Detalhamento diário"}
-            >
-              <View style={styles.chartWrapper}>
-                <LineChart
-                  data={evolucaoData}
-                  width={chartWidth}
-                  height={200}
-                  yAxisLabel="R$"
-                  yAxisSuffix=""
-                  withInnerLines={true}
-                  withOuterLines={false}
-                  withVerticalLines={false}
-                  chartConfig={{
-                    backgroundColor: theme.surface,
-                    backgroundGradientFrom: theme.surface,
-                    backgroundGradientTo: theme.surface,
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.1})`,
-                    labelColor: (opacity = 1) => theme.textMuted,
-                    style: { borderRadius: 16 },
-                    propsForDots: { r: "4", strokeWidth: "2", stroke: theme.surface }
-                  }}
-                  bezier
-                  style={styles.lineChart}
-                />
-              </View>
-            </ChartCard>
+            <Animated.View entering={FadeInDown.delay(1000).duration(800)}>
+              <ChartCard
+                title={activeTab === 'geral' ? "Fluxo de Caixa" : `Histórico de ${activeTab === 'receitas' ? 'Receitas' : 'Despesas'}`}
+                subtitle={activeFilter === 'mensal' ? "Visão mensal agrupada" : "Detalhamento diário"}
+              >
+                <View style={styles.chartWrapper}>
+                  <LineChart
+                    data={evolucaoData}
+                    width={chartWidth}
+                    height={200}
+                    yAxisLabel="R$"
+                    yAxisSuffix=""
+                    withInnerLines={true}
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    chartConfig={{
+                      backgroundColor: theme.surface,
+                      backgroundGradientFrom: theme.surface,
+                      backgroundGradientTo: theme.surface,
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.1})`,
+                      labelColor: (opacity = 1) => theme.textMuted,
+                      style: { borderRadius: 16 },
+                      propsForDots: { r: "4", strokeWidth: "2", stroke: theme.surface }
+                    }}
+                    bezier
+                    style={styles.lineChart}
+                  />
+                </View>
+              </ChartCard>
+            </Animated.View>
 
             {activeTab === 'geral' ? (
               <>
                 {/* CARD 2 GERAL: Resumo do Mês */}
-                <View style={styles.summaryGrid}>
+                <Animated.View entering={FadeInDown.delay(1200).duration(800)} style={styles.summaryGrid}>
                   <View style={[styles.summarySmallCard, { borderColor: `${theme.success}30` }]}>
                     <View style={[styles.summaryIconBg, { backgroundColor: theme.successLight }]}>
                       <Ionicons name="trending-up" size={20} color={theme.success} />
@@ -600,7 +670,7 @@ export default function AnalyticsScreen() {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </Animated.View>
 
                 {/* NOVO: Card de Fatura Pendente se houver */}
                 {currentMonthStats.pending > 0 && (
@@ -719,7 +789,7 @@ export default function AnalyticsScreen() {
                     <View style={[styles.insightIconBg, { backgroundColor: `${theme.primary}20` }]}>
                       <Ionicons name="star" size={16} color={theme.primary} />
                     </View>
-                    <Text style={styles.insightLabel}>Maior {activeTab === 'receitas' ? 'Entrada' : 'Gasto'}</Text>
+                    <Text style={styles.insightLabel}>Maior {activeTab === 'receitas' ? 'Entrada' : activeTab === 'cartao' ? 'Gasto no Cartão' : 'Gasto'}</Text>
                     <Text style={styles.insightValue}>R$ {insights.highest.value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</Text>
                     <Text style={styles.insightSubValue} numberOfLines={1}>{insights.highest.description}</Text>
                   </View>
@@ -728,7 +798,7 @@ export default function AnalyticsScreen() {
                     <View style={[styles.insightIconBg, { backgroundColor: `${theme.info}20` }]}>
                       <Ionicons name="calculator" size={16} color={theme.info} />
                     </View>
-                    <Text style={styles.insightLabel}>Média Diária ({activeTab === 'receitas' ? 'Receitas' : 'Gastos'})</Text>
+                    <Text style={styles.insightLabel}>Média Diária</Text>
                     <Text style={styles.insightValue}>R$ {insights.dailyAvg.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</Text>
                     <Text style={styles.insightSubValue}>Este mês</Text>
                   </View>
@@ -743,9 +813,17 @@ export default function AnalyticsScreen() {
                 <Text style={styles.tipsTitle}>Dica do Mês</Text>
               </View>
               <Text style={styles.tipsContent}>
-                {activeTab === 'despesas' && currentMonthStats.expense > prevMonthStats.expense
-                  ? "Seus gastos aumentaram em relação ao mês passado. Tente revisar as categorias 'Variáveis' para economizar."
-                  : "Bom trabalho! Seu balanço financeiro está saudável. Considere investir o saldo restante para fazer seu dinheiro render."}
+                {(() => {
+                  if (activeTab === 'cartao') {
+                    return currentMonthStats.pending > 500
+                      ? "Sua fatura de cartão está subindo. Tente antecipar pagamentos ou evitar novas compras parceladas."
+                      : "Uso do cartão sob controle. Lembre-se de conferir se as parcelas cabem no orçamento futuro.";
+                  }
+                  if (activeTab === 'despesas' && currentMonthStats.expense > prevMonthStats.expense) {
+                    return "Seus gastos aumentaram em relação ao mês passado. Tente revisar as categorias 'Variáveis' para economizar.";
+                  }
+                  return "Bom trabalho! Seu balanço financeiro está saudável. Considere investir o saldo restante para fazer seu dinheiro render.";
+                })()}
               </Text>
             </View>
           </>
@@ -837,12 +915,14 @@ const styles = StyleSheet.create({
     padding: 6,
     borderWidth: 1,
     borderColor: theme.border,
+    minWidth: '100%',
   },
   subTabItem: {
-    flex: 1,
     paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
     borderRadius: 10,
+    minWidth: 80,
   },
   subTabItemActive: {
     backgroundColor: theme.surfaceLight,

@@ -3,7 +3,13 @@ import { Platform } from 'react-native';
 
 const isServer = Platform.OS === 'web' && typeof window === 'undefined';
 
-export const safeStorage = {
+export interface CustomStorage {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+}
+
+export const safeStorage: CustomStorage = {
   getItem: async (key: string) => {
     if (isServer) return null;
     return AsyncStorage.getItem(key);

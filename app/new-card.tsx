@@ -30,7 +30,12 @@ const theme = {
   danger: '#FF453A',
 };
 
-const cardColors = [
+interface CardColor {
+  main: string;
+  grad: string[];
+}
+
+const cardColors: CardColor[] = [
   { main: '#8A2BE2', grad: ['#8A2BE2', '#4B0082'] }, // Roxo
   { main: '#2196F3', grad: ['#2196F3', '#1565C0'] }, // Azul
   { main: '#FF9F0A', grad: ['#FF9F0A', '#FF8C00'] }, // Laranja
@@ -119,9 +124,10 @@ export default function NewCardScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Erro ao salvar cartão:", err);
-      Alert.alert("Erro", `Ocorreu um erro ao salvar o cartão: ${err.message || 'Erro desconhecido'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      Alert.alert("Erro", `Ocorreu um erro ao salvar o cartão: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -137,9 +143,10 @@ export default function NewCardScreen() {
           try {
             await deleteCard(editId);
             router.back();
-          } catch (err: any) {
+          } catch (err) {
             console.error("Erro ao excluir cartão:", err);
-            Alert.alert("Erro ao Excluir", err.message || "Não foi possível excluir o cartão no momento.");
+            const errorMessage = err instanceof Error ? err.message : "Não foi possível excluir o cartão no momento.";
+            Alert.alert("Erro ao Excluir", errorMessage);
           } finally {
             setLoading(false);
           }
@@ -157,7 +164,7 @@ export default function NewCardScreen() {
     setLimit(cleanValue);
   };
 
-  const onSelectColor = (color: any) => {
+  const onSelectColor = (color: CardColor) => {
     Haptics.selectionAsync();
     setSelectedColor(color);
   };

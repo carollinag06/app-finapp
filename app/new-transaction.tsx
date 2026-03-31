@@ -12,11 +12,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCardStore } from '../store/cardStore';
+import { Category, useCategoryStore } from '../store/categoryStore';
 import { useTransactionStore } from '../store/transactionStore';
 
 // --- TEMA (Sincronizado com Analytics) ---
@@ -37,28 +37,16 @@ const theme = {
 
 const MAX_WIDTH = 600;
 
-// --- CATEGORIAS ATUALIZADAS (Sincronizado com Analytics) ---
-const expenseCategories = [
-  { id: '1', name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A' },
-  { id: '2', name: 'Transporte', icon: 'car-outline', color: '#64D2FF' },
-  { id: '3', name: 'Moradia', icon: 'home-outline', color: '#FF9F0A' },
-  { id: '4', name: 'Saúde', icon: 'heart-outline', color: '#32D74B' },
-  { id: '5', name: 'Lazer', icon: 'game-controller-outline', color: '#BF5AF2' },
-  { id: '10', name: 'Educação', icon: 'book-outline', color: '#5E5CE6' },
-  { id: '11', name: 'Outros', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
-];
-
-const incomeCategories = [
-  { id: '6', name: 'Salário', icon: 'cash-outline', color: '#30D158' },
-  { id: '7', name: 'Freelance', icon: 'laptop-outline', color: '#FF375F' },
-  { id: '8', name: 'Investimento', icon: 'trending-up-outline', color: '#0A84FF' },
-  { id: '9', name: 'Presente', icon: 'gift-outline', color: '#FFD60A' },
-];
-
 // --- COMPONENTES MEMOIZADOS PARA PERFORMANCE ---
 // React.memo evita re-renders se as props não mudarem
 
-const CategoryItem = memo(({ cat, isSelected, onPress }: any) => {
+interface CategoryItemProps {
+  cat: Category;
+  isSelected: boolean;
+  onPress: (id: string) => void;
+}
+
+const CategoryItem = memo(({ cat, isSelected, onPress }: CategoryItemProps) => {
   const catColor = cat.color || theme.textMuted;
   return (
     <TouchableOpacity
@@ -80,8 +68,15 @@ const CategoryItem = memo(({ cat, isSelected, onPress }: any) => {
     </TouchableOpacity>
   );
 });
+CategoryItem.displayName = 'CategoryItem';
 
-const PillButton = memo(({ label, isActive, onPress }: any) => (
+interface PillButtonProps {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}
+
+const PillButton = memo(({ label, isActive, onPress }: PillButtonProps) => (
   <TouchableOpacity
     style={[styles.pill, isActive && styles.pillActive]}
     onPress={onPress}
@@ -89,12 +84,12 @@ const PillButton = memo(({ label, isActive, onPress }: any) => (
     <Text style={[styles.pillText, isActive && styles.pillTextActive]}>{label}</Text>
   </TouchableOpacity>
 ));
+PillButton.displayName = 'PillButton';
 
 export default function NewTransactionScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
   const inputRef = useRef<TextInput>(null);
 
   // --- ESTADOS DO FORMULÁRIO ---
@@ -118,11 +113,25 @@ export default function NewTransactionScreen() {
 
   const cards = useCardStore((state) => state.cards);
 
+  const { categories, fetchCategories } = useCategoryStore();
+
+  // Carregar categorias do banco sempre ao entrar na tela para garantir dados atualizados
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
   // --- CÁLCULOS MEMOIZADOS (useMemo) ---
   // Recalcula apenas quando transactionType mudar
   const isExpense = useMemo(() => transactionType === 'expense', [transactionType]);
   const activeColor = useMemo(() => isExpense ? theme.danger : theme.success, [isExpense]);
-  const currentCategories = useMemo(() => isExpense ? expenseCategories : incomeCategories, [isExpense]);
+  const currentCategories = useMemo(() => categories.filter(c => c.type === transactionType), [categories, transactionType]);
+
+  // Garantir que a categoria selecionada seja válida para o tipo atual
+  useEffect(() => {
+    if (currentCategories.length > 0 && !currentCategories.find(c => c.id === selectedCategory)) {
+      setSelectedCategory(currentCategories[0].id);
+    }
+  }, [currentCategories, selectedCategory]);
 
   // Estilos dinâmicos memoizados
   const containerStyle = useMemo(() => [
@@ -152,12 +161,11 @@ export default function NewTransactionScreen() {
         setSelectedCardId(t.cardId || null);
         setRecurrence(t.recurrence || 'variable');
 
-        const categories = t.type === 'expense' ? expenseCategories : incomeCategories;
-        const cat = categories.find(c => c.name === t.category);
+        const cat = categories.find(c => c.name === t.category && c.type === t.type);
         if (cat) setSelectedCategory(cat.id);
       }
     }
-  }, [editId, transactions]);
+  }, [editId, transactions, categories]);
 
   // --- HANDLERS MEMOIZADOS (useCallback) ---
   // useCallback evita que a função seja recriada em cada render
@@ -184,7 +192,7 @@ export default function NewTransactionScreen() {
     setValue(cleanText);
   }, []);
 
-  const onDateChange = useCallback((event: any, selectedDate?: Date) => {
+  const onDateChange = useCallback((_event: unknown, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
       setDate(selectedDate.toISOString());
@@ -230,9 +238,10 @@ export default function NewTransactionScreen() {
       }
 
       router.back();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Erro ao salvar transação:", err);
-      Alert.alert("Erro ao Salvar", err.message || "Ocorreu um erro inesperado ao salvar a transação. Verifique sua conexão.");
+      const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro inesperado ao salvar a transação. Verifique sua conexão.";
+      Alert.alert("Erro ao Salvar", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -250,8 +259,9 @@ export default function NewTransactionScreen() {
             try {
               await deleteTransaction(editId);
               router.back();
-            } catch (err: any) {
-              Alert.alert("Erro", err.message || "Erro ao excluir transação");
+            } catch (err) {
+              const errorMessage = err instanceof Error ? err.message : "Erro ao excluir transação";
+              Alert.alert("Erro", errorMessage);
             } finally {
               setLoading(false);
             }
@@ -263,8 +273,11 @@ export default function NewTransactionScreen() {
 
   const handleTypeChange = useCallback((type: 'expense' | 'income') => {
     setTransactionType(type);
-    setSelectedCategory(type === 'expense' ? expenseCategories[0].id : incomeCategories[0].id);
-  }, []);
+    const typeCats = categories.filter(c => c.type === type);
+    if (typeCats.length > 0) {
+      setSelectedCategory(typeCats[0].id);
+    }
+  }, [categories]);
 
   return (
     <View style={containerStyle}>
@@ -496,21 +509,36 @@ export default function NewTransactionScreen() {
 
               {/* Categorias (Lista Horizontal) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Categoria</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryScroll}
-                >
-                  {currentCategories.map((cat) => (
-                    <CategoryItem
-                      key={cat.id}
-                      cat={cat}
-                      isSelected={selectedCategory === cat.id}
-                      onPress={setSelectedCategory}
-                    />
-                  ))}
-                </ScrollView>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={styles.label}>Categoria</Text>
+                  <TouchableOpacity onPress={() => router.push('/categories')}>
+                    <Text style={{ color: theme.primary, fontSize: 12, fontWeight: 'bold' }}>Gerenciar</Text>
+                  </TouchableOpacity>
+                </View>
+                {currentCategories.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryScroll}
+                  >
+                    {currentCategories.map((cat) => (
+                      <CategoryItem
+                        key={cat.id}
+                        cat={cat}
+                        isSelected={selectedCategory === cat.id}
+                        onPress={setSelectedCategory}
+                      />
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.noCategoriesContainer}
+                    onPress={() => router.push('/categories')}
+                  >
+                    <Ionicons name="pricetag-outline" size={24} color={theme.textMuted} />
+                    <Text style={styles.noCategoriesText}>Nenhuma categoria de {isExpense ? 'despesa' : 'receita'} encontrada. Toque para criar.</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
             </View>
@@ -808,6 +836,22 @@ const styles = StyleSheet.create({
   },
 
   // Categorias
+  noCategoriesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  noCategoriesText: {
+    color: theme.textMuted,
+    fontSize: 14,
+    flex: 1,
+  },
   categoryScroll: {
     gap: 12,
     paddingVertical: 8,

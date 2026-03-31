@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { makeRedirectUri } from 'expo-auth-session';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Platform,
   SafeAreaView,
@@ -18,11 +17,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  ZoomIn
+} from 'react-native-reanimated';
 import { supabase } from '../src/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
-
-const { width } = Dimensions.get('window');
 
 const theme = {
   bg: '#0F0F12',
@@ -91,36 +94,60 @@ export default function WelcomeScreen() {
           const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
 
           if (result.type === 'success' && result.url) {
+            console.log('OAuth URL recebida:', result.url);
+
             const parsed = Linking.parse(result.url);
-            const access_token = parsed.queryParams?.access_token as string;
-            const refresh_token = parsed.queryParams?.refresh_token as string;
+
+            // Tenta extrair access_token tanto de queryParams quanto manualmente do fragmento (#)
+            let access_token = parsed.queryParams?.access_token as string;
+            let refresh_token = parsed.queryParams?.refresh_token as string;
+
+            // Fallback manual se o Linking.parse não pegar do fragmento #
+            if (!access_token && result.url.includes('access_token=')) {
+              console.log('Extraindo tokens manualmente do fragmento...');
+              const fragment = result.url.split('#')[1];
+              if (fragment) {
+                const params = new URLSearchParams(fragment);
+                access_token = params.get('access_token') || '';
+                refresh_token = params.get('refresh_token') || '';
+              }
+            }
 
             if (access_token) {
+              console.log('Tokens extraídos com sucesso, definindo sessão...');
               const { error: sessionError } = await supabase.auth.setSession({
                 access_token,
                 refresh_token: refresh_token || '',
               });
 
-              if (sessionError) throw sessionError;
+              if (sessionError) {
+                console.error('Erro ao definir sessão no Supabase:', sessionError);
+                throw sessionError;
+              }
 
+              console.log('Sessão definida, redirecionando para tabs...');
               // Redireciona para a página principal após o login
               router.replace('/(tabs)');
             } else {
+              console.warn('Login concluído mas nenhum token foi encontrado na URL:', result.url);
               setLoading(false);
             }
           } else {
+            console.log('OAuth cancelado ou falhou. Tipo:', result.type);
             setLoading(false);
           }
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro detalhado no login com Google:', error);
 
       let errorMessage = 'Não foi possível entrar com Google agora.';
-      if (error.message?.includes('provider is not enabled')) {
-        errorMessage = 'O login com Google ainda não foi habilitado no painel do Supabase.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error instanceof Error) {
+        if (error.message?.includes('provider is not enabled')) {
+          errorMessage = 'O login com Google ainda não foi habilitado no painel do Supabase.';
+        } else {
+          errorMessage = error.message;
+        }
       }
 
       Alert.alert('Erro no Login', errorMessage);
@@ -137,24 +164,38 @@ export default function WelcomeScreen() {
       >
         <SafeAreaView style={styles.content}>
           {/* --- ILUSTRAÇÃO / LOGO --- */}
-          <View style={styles.headerContainer}>
-            <View style={styles.logoWrapper}>
-              <LinearGradient
-                colors={[theme.primary, theme.primaryLight]}
-                style={styles.logoCircle}
-              >
-                <MaterialCommunityIcons name="finance" size={60} color="#FFF" />
-              </LinearGradient>
-              <View style={styles.logoDecoration} />
-            </View>
-            <Text style={styles.welcomeTitle}>Bem-vindo ao FinançasApp</Text>
-            <Text style={styles.welcomeSubtitle}>
+          <Animated.View
+            entering={FadeInUp.delay(200).duration(1000)}
+            style={styles.headerContainer}
+          >
+            <Animated.View
+              entering={ZoomIn.delay(400).duration(800)}
+              style={styles.logoWrapper}
+            >
+              <Image
+                source={require('../assets/images/logo.jpeg')}
+                style={styles.logoImage}
+              />
+            </Animated.View>
+            <Animated.Text
+              entering={FadeIn.delay(800).duration(800)}
+              style={styles.welcomeTitle}
+            >
+              Bem-vindo ao FinançasApp
+            </Animated.Text>
+            <Animated.Text
+              entering={FadeIn.delay(1000).duration(800)}
+              style={styles.welcomeSubtitle}
+            >
               Sua jornada para a liberdade financeira começa aqui.
-            </Text>
-          </View>
+            </Animated.Text>
+          </Animated.View>
 
           {/* --- BOTÕES DE AÇÃO --- */}
-          <View style={styles.actionsContainer}>
+          <Animated.View
+            entering={FadeInDown.delay(1200).duration(1000)}
+            style={styles.actionsContainer}
+          >
             {/* Botão Google */}
             <TouchableOpacity
               style={[styles.googleButton, loading && styles.buttonDisabled]}
@@ -192,7 +233,7 @@ export default function WelcomeScreen() {
                 <Text style={styles.footerLink}>Cadastre-se</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -219,29 +260,13 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     position: 'relative',
-    marginBottom: 40,
+    marginBottom: 30,
   },
-  logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 10,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
-  },
-  logoDecoration: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(138, 43, 226, 0.2)',
-    zIndex: -1,
+  logoImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    resizeMode: 'contain',
   },
   welcomeTitle: {
     fontSize: 28,

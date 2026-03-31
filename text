@@ -1,1 +1,3 @@
-npx expo start --tunnel
+
+
+eas build --platform android --profile production_apk

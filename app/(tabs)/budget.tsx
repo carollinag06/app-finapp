@@ -1,20 +1,18 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Dimensions,
   FlatList,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBudgetStore, BudgetGoal } from '../../store/budgetStore';
+import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { useTransactionStore } from '../../store/transactionStore';
 
-const screenWidth = Dimensions.get('window').width;
 const MAX_WIDTH = 600;
 
 const theme = {
@@ -114,14 +112,16 @@ export default function BudgetScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Header />
+        <Animated.View entering={FadeInUp.duration(800)}>
+          <Header />
+        </Animated.View>
 
         <FlatList
           data={budgets}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
           ListHeaderComponent={() => (
-            <>
+            <Animated.View entering={FadeInDown.delay(200).duration(800)}>
               {/* Resumo Geral */}
               <View style={styles.summaryCard}>
                 <View style={styles.summaryInfo}>
@@ -151,17 +151,19 @@ export default function BudgetScreen() {
               </View>
 
               <Text style={styles.sectionTitle}>Categorias</Text>
-            </>
+            </Animated.View>
           )}
-          renderItem={({ item }) => (
-            <BudgetCard goal={item} spent={monthlyExpenses[item.category] || 0} />
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(400 + index * 100).duration(800)}>
+              <BudgetCard goal={item} spent={monthlyExpenses[item.category] || 0} />
+            </Animated.View>
           )}
           ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
+            <Animated.View entering={FadeIn.delay(400)} style={styles.emptyState}>
               <Ionicons name="flag-outline" size={48} color={theme.textMuted} />
               <Text style={styles.emptyTitle}>Nenhuma meta definida</Text>
               <Text style={styles.emptySubtitle}>Defina orçamentos para controlar seus gastos por categoria.</Text>
-            </View>
+            </Animated.View>
           )}
         />
       </View>

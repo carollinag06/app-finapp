@@ -25,9 +25,6 @@ const theme = {
 };
 
 const CardItem = ({ card, onEdit, onDelete }: { card: CreditCard, onEdit: (id: string) => void, onDelete: (id: string) => void }) => {
-  // Encontra o gradiente correspondente (ou usa um padrão)
-  const cardGrad = ['#2C2C2E', '#000000']; // Default preto se não achar
-
   return (
     <TouchableOpacity
       activeOpacity={0.9}

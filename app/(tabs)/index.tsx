@@ -2,7 +2,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format, isToday, isYesterday, parse, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
-import React, { ComponentProps, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -12,21 +12,24 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// --- IMPORTAMOS O NOSSO STORE ---
+import { User } from '@supabase/supabase-js';
 import { supabase } from '../../src/lib/supabase';
 import { useBudgetStore } from '../../store/budgetStore';
-import { useTransactionStore } from '../../store/transactionStore';
+import { CreditCard, useCardStore } from '../../store/cardStore';
+import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- TIPAGEM ---
-type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
-interface Conta {
-  id: string;
-  nome: string;
-  saldo: number;
-  icone: IoniconsName;
+interface InvoiceAlert {
+  cardId: string;
+  cardName: string;
+  value: number;
+  daysRemaining: number;
+  month: number;
+  year: number;
 }
 
 const MAX_WIDTH = 600; // Largura máxima para desktop
@@ -71,7 +74,7 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
   currentYear: number,
   onPrev: () => void,
   onNext: () => void,
-  user: any
+  user: User | null
 }) => {
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Usuário';
   const avatarUrl = user?.user_metadata?.avatar_url;
@@ -121,7 +124,17 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
   );
 };
 
-const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valorPendente, totalOrcado }: any) => {
+interface CardSaldoProps {
+  mostrarSaldo: boolean;
+  toggleSaldo: () => void;
+  saldo: number;
+  receitas: number;
+  despesas: number;
+  valorPendente: number;
+  totalOrcado: number;
+}
+
+const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valorPendente, totalOrcado }: CardSaldoProps) => {
   const percent = totalOrcado > 0 ? Math.min((despesas / totalOrcado) * 100, 100) : 0;
 
   return (
@@ -157,7 +170,10 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
       </View>
 
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => router.push({ pathname: '/analytics', params: { tab: 'receitas' } })}
+        >
           <View style={[styles.statIconCircle, { backgroundColor: 'rgba(0, 230, 118, 0.1)' }]}>
             <Ionicons name="trending-up" size={14} color={theme.success} />
           </View>
@@ -167,11 +183,14 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
               {mostrarSaldo ? `R$ ${receitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••'}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.statDivider} />
 
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => router.push({ pathname: '/analytics', params: { tab: 'despesas' } })}
+        >
           <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255, 82, 82, 0.1)' }]}>
             <Ionicons name="trending-down" size={14} color={theme.danger} />
           </View>
@@ -181,7 +200,7 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
               {mostrarSaldo ? `R$ ${despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••'}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -225,7 +244,7 @@ const AtalhosRapidos = () => {
   );
 };
 
-const TransacoesRecentes = ({ transactions }: { transactions: any[] }) => (
+const TransacoesRecentes = ({ transactions }: { transactions: Transaction[] }) => (
   <View style={styles.section}>
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>Transações Recentes</Text>
@@ -267,7 +286,7 @@ const TransacoesRecentes = ({ transactions }: { transactions: any[] }) => (
                       if (isYesterday(date)) return 'Ontem';
 
                       return format(date, "dd 'de' MMMM", { locale: ptBR });
-                    } catch (e) {
+                    } catch {
                       return t.date;
                     }
                   })()}
@@ -303,22 +322,76 @@ const HealthCard = () => (
   </TouchableOpacity>
 );
 
+const InvoiceAlerts = ({ alerts, onMarkAsPaid }: { alerts: InvoiceAlert[], onMarkAsPaid: (cardId: string) => void }) => {
+  if (alerts.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Alertas de Fatura</Text>
+      </View>
+      {alerts.map((alert) => {
+        let alertColor = theme.warning; // 5 dias
+        if (alert.daysRemaining <= 1) alertColor = theme.danger; // 1 dia
+        else if (alert.daysRemaining <= 3) alertColor = '#FF9800'; // 3 dias (Laranja)
+
+        return (
+          <View key={alert.cardId} style={[styles.alertCard, { borderColor: alertColor }]}>
+            <View style={styles.alertHeader}>
+              <Ionicons name="warning" size={20} color={alertColor} />
+              <Text style={[styles.alertTitle, { color: alertColor }]}>Fatura próxima do vencimento</Text>
+            </View>
+
+            <View style={styles.alertContent}>
+              <View style={styles.alertInfoRow}>
+                <Text style={styles.alertLabel}>Cartão:</Text>
+                <Text style={styles.alertValue}>{alert.cardName}</Text>
+              </View>
+              <View style={styles.alertInfoRow}>
+                <Text style={styles.alertLabel}>Valor:</Text>
+                <Text style={styles.alertValue}>R$ {alert.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+              </View>
+              <View style={styles.alertInfoRow}>
+                <Text style={styles.alertLabel}>Vence em:</Text>
+                <Text style={[styles.alertValue, { color: alertColor, fontWeight: 'bold' }]}>
+                  {alert.daysRemaining === 0 ? 'Hoje' : alert.daysRemaining === 1 ? '1 dia' : `${alert.daysRemaining} dias`}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.alertFooter}>
+              <TouchableOpacity
+                style={styles.alertDetailButton}
+                onPress={() => router.push('/cards')}
+              >
+                <Text style={styles.alertDetailButtonText}>Ver fatura</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.alertPayButton, { backgroundColor: alertColor }]}
+                onPress={() => onMarkAsPaid(alert.cardId)}
+              >
+                <Text style={styles.alertPayButtonText}>Marcar como paga</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
 // --- TELA PRINCIPAL ---
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [mostrarSaldo, setMostrarSaldo] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
-  const cardWidth = contentWidth - 40; // Considerando o paddingHorizontal de 20 em scrollContent
-  const shortcutWidth = (cardWidth - 48) / 4; // 48 é o gap acumulado entre 4 itens (16 * 3)
 
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
+  const { cards, markInvoiceAsPaid, isInvoicePaid } = useCardStore();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -328,9 +401,59 @@ export default function Dashboard() {
     fetchUser();
   }, []);
 
+  // Alertas de Fatura
+  const invoiceAlerts = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    return cards.map((card: CreditCard) => {
+      // Valor da fatura (transações de crédito do cartão no mês atual)
+      const invoiceValue = transactions
+        .filter((t: Transaction) => t.cardId === card.id && t.paymentMethod === 'credit')
+        .reduce((acc, t) => acc + t.value, 0);
+
+      if (invoiceValue === 0) return null;
+
+      // Se já foi paga, não mostra alerta
+      if (isInvoicePaid(card.id, currentMonth, currentYear)) return null;
+
+      // Cálculo de dias restantes
+      const dueDate = new Date(currentYear, currentMonth, card.due_day);
+
+      // Se a data de vencimento já passou este mês, olha para o próximo mês
+      // (Isso é uma simplificação, em apps reais depende do dia de fechamento)
+      if (dueDate < today && today.getDate() > card.due_day) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+
+      const diffTime = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Só alerta se faltar 5 dias ou menos
+      if (diffDays >= 0 && diffDays <= 5) {
+        return {
+          cardId: card.id,
+          cardName: card.name,
+          value: invoiceValue,
+          daysRemaining: diffDays,
+          month: currentMonth,
+          year: currentYear
+        } as InvoiceAlert;
+      }
+
+      return null;
+    }).filter((a): a is InvoiceAlert => a !== null);
+  }, [cards, transactions, isInvoicePaid]);
+
+  const handleMarkAsPaid = (cardId: string) => {
+    const today = new Date();
+    markInvoiceAsPaid(cardId, today.getMonth(), today.getFullYear());
+  };
+
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
-    return transactions.filter(t => {
+    return transactions.filter((t: Transaction) => {
       const transactionDate = t.date.includes('/')
         ? (() => { const [d, m, y] = t.date.split('/').map(Number); return new Date(y, m - 1, d); })()
         : new Date(t.date);
@@ -340,15 +463,15 @@ export default function Dashboard() {
   }, [transactions, currentMonth, currentYear]);
 
   const receitasTotais = useMemo(() =>
-    monthlyTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'income').reduce((acc, t) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const despesasTotais = useMemo(() =>
-    monthlyTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const valorPendente = useMemo(() =>
-    monthlyTransactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc, t) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const totalOrcado = useMemo(() =>
@@ -356,8 +479,6 @@ export default function Dashboard() {
     , [budgets]);
 
   const saldoAtual = receitasTotais - (despesasTotais - valorPendente); // Saldo disponível (descontando o que já foi pago)
-  // Ou talvez o usuário queira o saldo real:
-  const saldoReal = receitasTotais - despesasTotais;
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -392,36 +513,50 @@ export default function Dashboard() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Header
-          currentMonth={currentMonth}
-          currentYear={currentYear}
-          onPrev={handlePrevMonth}
-          onNext={handleNextMonth}
-          user={user}
-        />
+        <Animated.View entering={FadeInUp.duration(800)}>
+          <Header
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            onPrev={handlePrevMonth}
+            onNext={handleNextMonth}
+            user={user}
+          />
+        </Animated.View>
 
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
         >
-          <CardSaldo
-            mostrarSaldo={mostrarSaldo}
-            toggleSaldo={() => setMostrarSaldo(!mostrarSaldo)}
-            saldo={saldoAtual}
-            receitas={receitasTotais}
-            despesas={despesasTotais}
-            valorPendente={valorPendente}
-            totalOrcado={totalOrcado}
-          />
+          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+            <CardSaldo
+              mostrarSaldo={mostrarSaldo}
+              toggleSaldo={() => setMostrarSaldo(!mostrarSaldo)}
+              saldo={saldoAtual}
+              receitas={receitasTotais}
+              despesas={despesasTotais}
+              valorPendente={valorPendente}
+              totalOrcado={totalOrcado}
+            />
+          </Animated.View>
 
-          <AtalhosRapidos />
+          <Animated.View entering={FadeInDown.delay(400).duration(800)}>
+            <AtalhosRapidos />
+          </Animated.View>
 
-          <HealthCard />
+          <Animated.View entering={FadeInDown.delay(600).duration(800)}>
+            <HealthCard />
+          </Animated.View>
 
-          <TransacoesRecentes transactions={monthlyTransactions} />
+          <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+            <InvoiceAlerts alerts={invoiceAlerts} onMarkAsPaid={handleMarkAsPaid} />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(1000).duration(800)}>
+            <TransacoesRecentes transactions={monthlyTransactions} />
+          </Animated.View>
 
           {/* Card de Investimento Mock */}
-          <View style={styles.section}>
+          <Animated.View entering={FadeInDown.delay(1200).duration(800)} style={styles.section}>
             <Text style={styles.sectionTitle}>Investimentos</Text>
             <TouchableOpacity style={styles.investCard}>
               <View style={styles.investIconBg}>
@@ -433,7 +568,7 @@ export default function Dashboard() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.border} />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
         </ScrollView>
       </View>
@@ -802,5 +937,71 @@ const styles = StyleSheet.create({
     color: theme.textMuted,
     fontSize: 13,
     marginTop: 2,
-  }
+  },
+  // Alerta de Fatura
+  alertCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  alertTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  alertContent: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  alertInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  alertLabel: {
+    color: theme.textMuted,
+    fontSize: 14,
+  },
+  alertValue: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  alertFooter: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  alertDetailButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertDetailButtonText: {
+    color: theme.text,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  alertPayButton: {
+    flex: 1.5,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertPayButtonText: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });

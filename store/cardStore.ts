@@ -16,19 +16,35 @@ export interface CreditCard {
 
 interface CardStore {
   cards: CreditCard[];
+  paidInvoices: string[]; // Formato: 'cardId-month-year'
   fetchCards: () => Promise<void>;
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
   updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
+  markInvoiceAsPaid: (cardId: string, month: number, year: number) => void;
+  isInvoicePaid: (cardId: string, month: number, year: number) => boolean;
   reset: () => void;
 }
 
 export const useCardStore = create<CardStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       cards: [],
+      paidInvoices: [],
 
-      reset: () => set({ cards: [] }),
+      reset: () => set({ cards: [], paidInvoices: [] }),
+
+      markInvoiceAsPaid: (cardId, month, year) => {
+        const id = `${cardId}-${month}-${year}`;
+        set((state) => ({
+          paidInvoices: [...state.paidInvoices, id]
+        }));
+      },
+
+      isInvoicePaid: (cardId, month, year) => {
+        const id = `${cardId}-${month}-${year}`;
+        return get().paidInvoices.includes(id);
+      },
 
       fetchCards: async () => {
         try {
@@ -47,7 +63,7 @@ export const useCardStore = create<CardStore>()(
           if (data) {
             set({ cards: data });
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch fetchCards:", err);
           throw err;
         }
@@ -68,13 +84,13 @@ export const useCardStore = create<CardStore>()(
             console.error("Erro Supabase addCard:", error);
             throw new Error(`Erro ao salvar cartão: ${error.message}`);
           }
-          
+
           if (data) {
             set((state) => ({
               cards: [data, ...state.cards]
             }));
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch addCard:", err);
           throw err;
         }
@@ -91,11 +107,11 @@ export const useCardStore = create<CardStore>()(
             console.error("Erro Supabase updateCard:", error);
             throw new Error(`Erro ao atualizar cartão: ${error.message}`);
           }
-          
+
           set((state) => ({
             cards: state.cards.map((c) => c.id === id ? { ...c, ...updatedCard } : c)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch updateCard:", err);
           throw err;
         }
@@ -116,7 +132,7 @@ export const useCardStore = create<CardStore>()(
           set((state) => ({
             cards: state.cards.filter((c) => c.id !== id)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch deleteCard:", err);
           throw err;
         }
@@ -124,7 +140,7 @@ export const useCardStore = create<CardStore>()(
     }),
     {
       name: 'card-storage',
-      storage: createJSONStorage(() => safeStorage as any),
+      storage: createJSONStorage(() => safeStorage),
     }
   )
 );

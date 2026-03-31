@@ -56,7 +56,7 @@ export const useTransactionStore = create<TransactionStore>()(
           if (data) {
             set({ transactions: data });
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch fetchTransactions:", err);
           throw err;
         }
@@ -82,7 +82,7 @@ export const useTransactionStore = create<TransactionStore>()(
               transactions: [data, ...state.transactions]
             }));
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch addTransaction:", err);
           throw err;
         }
@@ -103,7 +103,7 @@ export const useTransactionStore = create<TransactionStore>()(
           set((state) => ({
             transactions: state.transactions.map((t) => t.id === id ? { ...t, ...updatedTransaction } : t)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch updateTransaction:", err);
           throw err;
         }
@@ -124,7 +124,7 @@ export const useTransactionStore = create<TransactionStore>()(
           set((state) => ({
             transactions: state.transactions.filter((t) => t.id !== id)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch deleteTransaction:", err);
           throw err;
         }
@@ -132,7 +132,7 @@ export const useTransactionStore = create<TransactionStore>()(
     }),
     {
       name: 'transaction-storage',
-      storage: createJSONStorage(() => safeStorage as any),
+      storage: createJSONStorage(() => safeStorage),
     }
   )
 );

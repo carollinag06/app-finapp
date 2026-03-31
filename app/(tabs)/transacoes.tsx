@@ -5,15 +5,18 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Modal,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCategoryStore } from '../../store/categoryStore';
 import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- CORES DO TEMA E CATEGORIAS ---
@@ -50,22 +53,18 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Outros': 'pricetag',
 };
 
-const categoryColors: Record<string, string> = {
-  'Alimentação': '#FF5252',
-  'Transporte': '#FFD740',
-  'Moradia': '#8A2BE2',
-  'Saúde': '#00E676',
-  'Lazer': '#FF4081',
-  'Salário': '#00E676',
-  'Freelance': '#2196F3',
-  'Investimento': '#00BCD4',
-  'Presente': '#FF9800',
-  'Outros': '#9E9E9E',
-};
-
 // --- COMPONENTES ---
 
-const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any) => (
+interface HeaderProps {
+  onSearchToggle: () => void;
+  isSearching: boolean;
+  searchText: string;
+  setSearchText: (text: string) => void;
+  onFilterOpen: () => void;
+  hasActiveFilters: boolean;
+}
+
+const Header = ({ onSearchToggle, isSearching, searchText, setSearchText, onFilterOpen, hasActiveFilters }: HeaderProps) => (
   <View style={styles.header}>
     {!isSearching ? (
       <>
@@ -82,10 +81,12 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
             <Ionicons name="search-outline" size={20} color={theme.text} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.iconCircleHeader}
+            style={[styles.iconCircleHeader, hasActiveFilters && { borderColor: theme.primary, backgroundColor: 'rgba(138, 43, 226, 0.1)' }]}
+            onPress={onFilterOpen}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="filter-outline" size={20} color={theme.text} />
+            <Ionicons name={hasActiveFilters ? "filter" : "filter-outline"} size={20} color={hasActiveFilters ? theme.primary : theme.text} />
+            {hasActiveFilters && <View style={styles.filterBadge} />}
           </TouchableOpacity>
         </View>
       </>
@@ -119,7 +120,14 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText }: any)
   </View>
 );
 
-const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: any) => (
+interface MonthSelectorProps {
+  currentMonth: number;
+  currentYear: number;
+  onPrev: () => void;
+  onNext: () => void;
+}
+
+const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: MonthSelectorProps) => (
   <View style={styles.monthSelectorRow}>
     <TouchableOpacity
       style={styles.monthArrowBtn}
@@ -157,19 +165,27 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
 
   return (
     <View style={styles.summaryCard}>
-      <View style={styles.summaryItem}>
+      <TouchableOpacity
+        style={styles.summaryItem}
+        onPress={() => router.push({ pathname: '/analytics', params: { tab: 'receitas' } })}
+        activeOpacity={0.7}
+      >
         <Text style={styles.summaryLabel}>Entradas</Text>
         <Text style={[styles.summaryValue, { color: theme.success }]}>
           + R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
-      </View>
+      </TouchableOpacity>
       <View style={styles.summaryDivider} />
-      <View style={styles.summaryItem}>
+      <TouchableOpacity
+        style={styles.summaryItem}
+        onPress={() => router.push({ pathname: '/analytics', params: { tab: 'despesas' } })}
+        activeOpacity={0.7}
+      >
         <Text style={styles.summaryLabel}>Saídas</Text>
         <Text style={[styles.summaryValue, { color: theme.danger }]}>
           - R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </Text>
-      </View>
+      </TouchableOpacity>
       <View style={styles.summaryDivider} />
       <View style={styles.summaryItem}>
         <Text style={styles.summaryLabel}>Balanço</Text>
@@ -182,7 +198,6 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
 };
 
 const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id: string) => void }) => {
-  const color = categoryColors[item.category] || theme.textMuted;
   const icon = categoryIcons[item.category] || 'pricetag';
   const isIncome = item.type === 'income';
 
@@ -237,20 +252,27 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id:
 // --- TELA PRINCIPAL ---
 
 export default function TransactionsScreen() {
-  const { width: screenWidth } = useWindowDimensions();
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const insets = useSafeAreaInsets();
 
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
+  // Filtros
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState<'all' | 'credit' | 'debit'>('all');
+
+  const insets = useSafeAreaInsets();
 
   const transactions = useTransactionStore((state) => state.transactions);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
+  const categories = useCategoryStore((state) => state.categories);
+
+  const hasActiveFilters = filterType !== 'all' || filterCategory !== null || filterPaymentMethod !== 'all';
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
+    return transactions.filter((t: Transaction) => {
       const transactionDate = t.date.includes('/')
         ? parse(t.date, 'dd/MM/yyyy', new Date())
         : parseISO(t.date);
@@ -259,14 +281,25 @@ export default function TransactionsScreen() {
       const isSearchMatch = t.description.toLowerCase().includes(searchText.toLowerCase()) ||
         t.category.toLowerCase().includes(searchText.toLowerCase());
 
-      return isMonthMatch && isSearchMatch;
+      // Filtros adicionais
+      const isTypeMatch = filterType === 'all' || t.type === filterType;
+      const isCategoryMatch = !filterCategory || t.category === filterCategory;
+      const isPaymentMatch = filterPaymentMethod === 'all' || t.paymentMethod === filterPaymentMethod;
+
+      return isMonthMatch && isSearchMatch && isTypeMatch && isCategoryMatch && isPaymentMatch;
     });
-  }, [transactions, currentMonth, currentYear, searchText]);
+  }, [transactions, currentMonth, currentYear, searchText, filterType, filterCategory, filterPaymentMethod]);
+
+  const resetFilters = () => {
+    setFilterType('all');
+    setFilterCategory(null);
+    setFilterPaymentMethod('all');
+  };
 
   const sections = useMemo(() => {
     const groups: Record<string, Transaction[]> = {};
 
-    filteredTransactions.forEach(t => {
+    filteredTransactions.forEach((t: Transaction) => {
       // Usamos a data ISO para agrupar de forma consistente
       const dateObj = t.date.includes('/')
         ? parse(t.date, 'dd/MM/yyyy', new Date())
@@ -321,23 +354,29 @@ export default function TransactionsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Header
-          isSearching={isSearching}
-          onSearchToggle={() => {
-            setIsSearching(!isSearching);
-            if (isSearching) setSearchText('');
-          }}
-          searchText={searchText}
-          setSearchText={setSearchText}
-        />
+        <Animated.View entering={FadeInUp.duration(800)}>
+          <Header
+            isSearching={isSearching}
+            onSearchToggle={() => {
+              setIsSearching(!isSearching);
+              if (isSearching) setSearchText('');
+            }}
+            searchText={searchText}
+            setSearchText={setSearchText}
+            onFilterOpen={() => setIsFilterVisible(true)}
+            hasActiveFilters={hasActiveFilters}
+          />
+        </Animated.View>
 
         {!isSearching && (
-          <MonthSelector
-            currentMonth={currentMonth}
-            currentYear={currentYear}
-            onPrev={handlePrevMonth}
-            onNext={handleNextMonth}
-          />
+          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+            <MonthSelector
+              currentMonth={currentMonth}
+              currentYear={currentYear}
+              onPrev={handlePrevMonth}
+              onNext={handleNextMonth}
+            />
+          </Animated.View>
         )}
 
         <SectionList
@@ -349,19 +388,143 @@ export default function TransactionsScreen() {
           ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
 
           renderSectionHeader={({ section: { title } }) => (
-            <Text style={styles.sectionTitle}>{title}</Text>
+            <Animated.View entering={FadeIn.delay(400).duration(800)}>
+              <Text style={styles.sectionTitle}>{title}</Text>
+            </Animated.View>
           )}
 
-          renderItem={({ item }) => <TransactionItem item={item} onDelete={deleteTransaction} />}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={FadeInDown.delay(600 + index * 50).duration(800)}>
+              <TransactionItem item={item} onDelete={deleteTransaction} />
+            </Animated.View>
+          )}
 
           ListEmptyComponent={
-            <View style={{ padding: 40, alignItems: 'center' }}>
+            <Animated.View entering={FadeIn.delay(400)} style={{ padding: 40, alignItems: 'center' }}>
               <Ionicons name="search-outline" size={48} color={theme.border} style={{ marginBottom: 16 }} />
               <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
-            </View>
+            </Animated.View>
           }
         />
       </View>
+
+      {/* Modal de Filtros */}
+      <Modal
+        visible={isFilterVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsFilterVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filtros</Text>
+              <TouchableOpacity onPress={() => setIsFilterVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Tipo de Transação */}
+              <Text style={styles.filterSectionTitle}>Tipo</Text>
+              <View style={styles.filterOptionsRow}>
+                {[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'income', label: 'Entradas' },
+                  { id: 'expense', label: 'Saídas' }
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.filterChip,
+                      filterType === option.id && styles.filterChipActive
+                    ]}
+                    onPress={() => setFilterType(option.id as 'all' | 'income' | 'expense')}
+                  >
+                    <Text style={[
+                      styles.filterChipText,
+                      filterType === option.id && styles.filterChipTextActive
+                    ]}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Método de Pagamento */}
+              <Text style={styles.filterSectionTitle}>Pagamento</Text>
+              <View style={styles.filterOptionsRow}>
+                {[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'credit', label: 'Crédito' },
+                  { id: 'debit', label: 'Débito' }
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.filterChip,
+                      filterPaymentMethod === option.id && styles.filterChipActive
+                    ]}
+                    onPress={() => setFilterPaymentMethod(option.id as 'all' | 'credit' | 'debit')}
+                  >
+                    <Text style={[
+                      styles.filterChipText,
+                      filterPaymentMethod === option.id && styles.filterChipTextActive
+                    ]}>{option.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Categorias */}
+              <Text style={styles.filterSectionTitle}>Categorias</Text>
+              <View style={styles.filterOptionsGrid}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    filterCategory === null && styles.filterChipActive
+                  ]}
+                  onPress={() => setFilterCategory(null)}
+                >
+                  <Text style={[
+                    styles.filterChipText,
+                    filterCategory === null && styles.filterChipTextActive
+                  ]}>Todas</Text>
+                </TouchableOpacity>
+                {categories
+                  .filter((c) => filterType === 'all' || c.type === filterType)
+                  .map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.filterChip,
+                        filterCategory === cat.name && styles.filterChipActive
+                      ]}
+                      onPress={() => setFilterCategory(cat.name)}
+                    >
+                      <Text style={[
+                        styles.filterChipText,
+                        filterCategory === cat.name && styles.filterChipTextActive
+                      ]}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={resetFilters}
+              >
+                <Text style={styles.resetButtonText}>Limpar Filtros</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => setIsFilterVisible(false)}
+              >
+                <Text style={styles.applyButtonText}>Aplicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -544,6 +707,115 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   transactionValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  // Modal & Filters
+  filterBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.primary,
+    borderWidth: 1.5,
+    borderColor: theme.surface,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.bg,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.text,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  filterOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  filterChipActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  filterChipText: {
+    color: theme.textMuted,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: theme.text,
+    fontWeight: 'bold',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    paddingBottom: 8,
+  },
+  resetButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  resetButtonText: {
+    color: theme.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  applyButton: {
+    flex: 2,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: theme.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyButtonText: {
+    color: theme.text,
     fontSize: 15,
     fontWeight: 'bold',
   },

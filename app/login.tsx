@@ -1,18 +1,19 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
 
@@ -36,7 +37,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -92,8 +92,6 @@ export default function LoginScreen() {
     }
   };
 
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
-
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
@@ -102,16 +100,23 @@ export default function LoginScreen() {
           style={styles.keyboardView}
         >
           {/* --- HEADER / LOGO --- */}
-          <View style={styles.headerContainer}>
-            <View style={styles.logoCircle}>
-              <MaterialCommunityIcons name="finance" size={40} color={theme.text} />
-            </View>
+          <Animated.View
+            entering={FadeInUp.duration(800)}
+            style={styles.headerContainer}
+          >
+            <Image
+              source={require('../assets/images/logo.jpeg')}
+              style={styles.logoImage}
+            />
             <Text style={styles.title}>Bem-vindo de volta!</Text>
             <Text style={styles.subtitle}>Faça login para gerenciar suas finanças</Text>
-          </View>
+          </Animated.View>
 
           {/* --- FORMULÁRIO --- */}
-          <View style={styles.formContainer}>
+          <Animated.View
+            entering={FadeInDown.delay(200).duration(800)}
+            style={styles.formContainer}
+          >
             {/* Input de E-mail */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>E-mail</Text>
@@ -176,15 +181,15 @@ export default function LoginScreen() {
                 <Text style={styles.loginButtonText}>Entrar</Text>
               )}
             </TouchableOpacity>
-          </View>
+          </Animated.View>
 
           {/* --- RODAPÉ / CADASTRAR --- */}
-          <View style={styles.footerContainer}>
+          <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.footerContainer}>
             <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
             <TouchableOpacity onPress={() => router.push('/cadastro')} disabled={loading}>
               <Text style={styles.registerText}>Cadastre-se</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </View>
@@ -213,20 +218,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    // Sombra para dar um destaque na logo
-    elevation: 8,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+  logoImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 20,
+    resizeMode: 'contain',
   },
   title: {
     fontSize: 26,

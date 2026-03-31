@@ -11,9 +11,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../src/lib/supabase';
 
@@ -39,7 +39,6 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
 
   // Refs para navegação entre inputs
   const emailRef = useRef<TextInput>(null);
@@ -113,8 +112,6 @@ export default function RegisterScreen() {
     }
   }, [name, email, password, confirmPassword]);
 
-  const contentWidth = Math.min(screenWidth, MAX_WIDTH);
-
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
@@ -127,7 +124,10 @@ export default function RegisterScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* --- HEADER --- */}
-            <View style={styles.headerContainer}>
+            <Animated.View
+              entering={FadeInUp.duration(800)}
+              style={styles.headerContainer}
+            >
               <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -136,10 +136,13 @@ export default function RegisterScreen() {
                 <Text style={styles.title}>Criar Conta</Text>
                 <Text style={styles.subtitle}>Comece a organizar sua vida financeira agora mesmo.</Text>
               </View>
-            </View>
+            </Animated.View>
 
             {/* --- FORMULÁRIO --- */}
-            <View style={styles.formContainer}>
+            <Animated.View
+              entering={FadeInDown.delay(200).duration(800)}
+              style={styles.formContainer}
+            >
 
               {/* Input de Nome */}
               <View style={styles.inputGroup}>
@@ -249,13 +252,13 @@ export default function RegisterScreen() {
               >{loading ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.registerButtonText}>Cadastrar</Text>
-              )}</TouchableOpacity>
-
-            </View>
+                <Text style={styles.registerButtonText}>Criar minha conta</Text>
+              )}
+              </TouchableOpacity>
+            </Animated.View>
 
             {/* --- RODAPÉ / LOGIN --- */}
-            <View style={styles.footerContainer}>
+            <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.footerContainer}>
               <Text style={styles.footerText}>
                 Já tem uma conta?{' '}
                 <Text
@@ -265,7 +268,7 @@ export default function RegisterScreen() {
                   Entrar
                 </Text>
               </Text>
-            </View>
+            </Animated.View>
 
             <View style={{ height: 40 }} />
           </ScrollView>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { supabase } from '../src/lib/supabase';
 import { safeStorage } from '../src/lib/storage';
+import { supabase } from '../src/lib/supabase';
 
 export interface BudgetGoal {
   id: string;
@@ -46,7 +46,7 @@ export const useBudgetStore = create<BudgetStore>()(
           if (data) {
             set({ budgets: data });
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch fetchBudgets:", err);
           throw err;
         }
@@ -72,7 +72,7 @@ export const useBudgetStore = create<BudgetStore>()(
               budgets: [data, ...state.budgets]
             }));
           }
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch addBudget:", err);
           throw err;
         }
@@ -93,7 +93,7 @@ export const useBudgetStore = create<BudgetStore>()(
           set((state) => ({
             budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updatedBudget } : b)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch updateBudget:", err);
           throw err;
         }
@@ -114,7 +114,7 @@ export const useBudgetStore = create<BudgetStore>()(
           set((state) => ({
             budgets: state.budgets.filter((b) => b.id !== id)
           }));
-        } catch (err: any) {
+        } catch (err) {
           console.error("Erro catch deleteBudget:", err);
           throw err;
         }
@@ -122,7 +122,7 @@ export const useBudgetStore = create<BudgetStore>()(
     }),
     {
       name: 'budget-storage',
-      storage: createJSONStorage(() => safeStorage as any),
+      storage: createJSONStorage(() => safeStorage),
     }
   )
 );
