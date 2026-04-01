@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useInvestmentStore } from '../store/investmentStore';
+import { calculateLiveBalance, useInvestmentStore } from '../store/investmentStore';
 
 const { width: screenWidth } = Dimensions.get('window');
 const chartWidth = screenWidth - 48;
@@ -62,7 +62,7 @@ export default function InvestmentDetailsScreen() {
   const projections = useMemo(() => {
     if (!investment) return null;
 
-    const currentAmount = investment.current_amount || investment.amount;
+    const currentAmount = calculateLiveBalance(investment);
     const cdiFactor = (investment.cdi_percentage || 100) / 100;
     const monthlyRate = Math.pow(1 + ANNUAL_CDI, 1 / 12) - 1;
     const effectiveMonthlyRate = monthlyRate * cdiFactor;
@@ -81,7 +81,7 @@ export default function InvestmentDetailsScreen() {
 
   const yieldData = useMemo(() => {
     if (!investment) return null;
-    const currentAmount = investment.current_amount || investment.amount;
+    const currentAmount = calculateLiveBalance(investment);
     const totalProfit = currentAmount - investment.amount;
 
     // Se não houver lucro, mostra tudo zerado mas com estrutura
@@ -120,7 +120,7 @@ export default function InvestmentDetailsScreen() {
     );
   }
 
-  const currentAmount = investment.current_amount || investment.amount;
+  const currentAmount = calculateLiveBalance(investment);
   const profit = currentAmount - investment.amount;
   const profitability = investment.amount > 0 ? (profit / investment.amount) * 100 : 0;
   const isProfit = profit >= 0;

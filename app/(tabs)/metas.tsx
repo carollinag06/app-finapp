@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import {
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { useTransactionStore } from '../../store/transactionStore';
@@ -24,6 +24,7 @@ const theme = {
   primary: '#8A2BE2',
   primaryLight: 'rgba(138, 43, 226, 0.15)',
   success: '#32D74B',
+  warning: '#FFD60A',
   danger: '#FF453A',
   border: '#2C2C2E',
 };
@@ -31,8 +32,8 @@ const theme = {
 const Header = () => (
   <View style={styles.header}>
     <View>
-      <Text style={styles.headerSubtitle}>Metas e</Text>
-      <Text style={styles.headerTitle}>Orçamentos</Text>
+      <Text style={styles.headerSubtitle}>Minhas</Text>
+      <Text style={styles.headerTitle}>Metas</Text>
     </View>
     <TouchableOpacity style={styles.addGoalButton} onPress={() => router.push('/new-budget')}>
       <Ionicons name="add" size={24} color="#FFF" />
@@ -43,7 +44,14 @@ const Header = () => (
 const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
   const percentage = Math.min((spent / goal.amount) * 100, 100);
   const isOverBudget = spent > goal.amount;
+  const isNearLimit = spent >= goal.amount * 0.8 && !isOverBudget;
   const remaining = goal.amount - spent;
+
+  const getBarColor = () => {
+    if (isOverBudget) return theme.danger;
+    if (isNearLimit) return theme.warning;
+    return goal.color;
+  };
 
   return (
     <View style={styles.card}>
@@ -52,7 +60,19 @@ const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
           <Ionicons name={(goal.icon as keyof typeof Ionicons.glyphMap) || 'wallet-outline'} size={22} color={goal.color} />
         </View>
         <View style={styles.cardTitleContainer}>
-          <Text style={styles.cardCategory}>{goal.category}</Text>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardCategory}>{goal.category}</Text>
+            {isOverBudget && (
+              <View style={[styles.alertBadge, { backgroundColor: `${theme.danger}20` }]}>
+                <Text style={[styles.alertBadgeText, { color: theme.danger }]}>Estourou</Text>
+              </View>
+            )}
+            {isNearLimit && (
+              <View style={[styles.alertBadge, { backgroundColor: `${theme.warning}20` }]}>
+                <Text style={[styles.alertBadgeText, { color: theme.warning }]}>Atenção</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.cardAmount}>R$ {spent.toLocaleString('pt-BR')} / R$ {goal.amount.toLocaleString('pt-BR')}</Text>
         </View>
         <TouchableOpacity onPress={() => router.push({ pathname: '/new-budget', params: { id: goal.id } })}>
@@ -65,13 +85,15 @@ const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
           <View
             style={[
               styles.progressBarFill,
-              { width: `${percentage}%`, backgroundColor: isOverBudget ? theme.danger : goal.color }
+              { width: `${percentage}%`, backgroundColor: getBarColor() }
             ]}
           />
         </View>
         <View style={styles.progressLabels}>
-          <Text style={styles.progressPercent}>{percentage.toFixed(0)}% utilizado</Text>
-          <Text style={[styles.remainingText, isOverBudget && { color: theme.danger }]}>
+          <Text style={[styles.progressPercent, (isOverBudget || isNearLimit) && { color: getBarColor(), fontWeight: 'bold' }]}>
+            {percentage.toFixed(0)}% utilizado
+          </Text>
+          <Text style={[styles.remainingText, isOverBudget && { color: theme.danger }, isNearLimit && { color: theme.warning }]}>
             {isOverBudget ? `Excedeu R$ ${Math.abs(remaining).toLocaleString('pt-BR')}` : `Resta R$ ${remaining.toLocaleString('pt-BR')}`}
           </Text>
         </View>
@@ -80,15 +102,45 @@ const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
   );
 };
 
-export default function BudgetScreen() {
+export default function MetasScreen() {
   const insets = useSafeAreaInsets();
   const budgets = useBudgetStore((state) => state.budgets);
   const transactions = useTransactionStore((state) => state.transactions);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const [currentMonth, setCurrentMonth] = React.useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = React.useState(new Date().getFullYear());
 
-  // Filtrar gastos do mês atual por categoria
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
+    } else {
+      setCurrentMonth(currentMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
+  };
+
+  const monthName = new Date(currentYear, currentMonth).toLocaleString('pt-BR', { month: 'long' });
+
+  // Calcular dias restantes no mês selecionado
+  const daysRemaining = useMemo(() => {
+    const today = new Date();
+    if (currentMonth !== today.getMonth() || currentYear !== today.getFullYear()) {
+      return 0; // Se não for o mês atual, não faz sentido calcular gasto diário
+    }
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    return Math.max(lastDayOfMonth - today.getDate() + 1, 1);
+  }, [currentMonth, currentYear]);
+
+  // Filtrar gastos do mês selecionado por categoria
   const monthlyExpenses = useMemo(() => {
     const expenses: Record<string, number> = {};
     transactions.forEach(t => {
@@ -109,19 +161,62 @@ export default function BudgetScreen() {
   const totalSpentInBudgets = budgets.reduce((acc, b) => acc + (monthlyExpenses[b.category] || 0), 0);
   const overallPercentage = Math.min((totalSpentInBudgets / totalBudgeted) * 100, 100);
 
+  const dailyAllowance = useMemo(() => {
+    if (daysRemaining <= 0 || totalBudgeted <= 0) return 0;
+    const remainingBudget = totalBudgeted - totalSpentInBudgets;
+    return Math.max(remainingBudget / daysRemaining, 0);
+  }, [totalBudgeted, totalSpentInBudgets, daysRemaining]);
+
+  // Sugestões de metas (categorias com gastos mas sem metas)
+  const goalSuggestions = useMemo(() => {
+    const budgetedCategories = new Set(budgets.map(b => b.category));
+    const suggestions: { category: string; spent: number }[] = [];
+
+    Object.entries(monthlyExpenses).forEach(([category, spent]) => {
+      if (!budgetedCategories.has(category) && spent > 0) {
+        suggestions.push({ category, spent });
+      }
+    });
+
+    return suggestions.sort((a, b) => b.spent - a.spent).slice(0, 3);
+  }, [budgets, monthlyExpenses]);
+
+  // Ordenação das metas: Estouradas primeiro, depois por proximidade do limite
+  const sortedBudgets = useMemo(() => {
+    return [...budgets].sort((a, b) => {
+      const percA = (monthlyExpenses[a.category] || 0) / a.amount;
+      const percB = (monthlyExpenses[b.category] || 0) / b.amount;
+      return percB - percA;
+    });
+  }, [budgets, monthlyExpenses]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(800)}>
+        <Animated.View entering={FadeInUp.duration(650)}>
           <Header />
         </Animated.View>
 
         <FlatList
-          data={budgets}
+          data={sortedBudgets}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
           ListHeaderComponent={() => (
-            <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+            <Animated.View key={`header-${currentMonth}-${currentYear}`} entering={FadeIn.duration(320)}>
+              {/* Seletor de Mês */}
+              <View style={styles.monthSelector}>
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.monthArrow}>
+                  <Ionicons name="chevron-back" size={24} color={theme.text} />
+                </TouchableOpacity>
+                <View style={styles.monthTitleContainer}>
+                  <Text style={styles.monthName}>{monthName}</Text>
+                  <Text style={styles.yearName}>{currentYear}</Text>
+                </View>
+                <TouchableOpacity onPress={handleNextMonth} style={styles.monthArrow}>
+                  <Ionicons name="chevron-forward" size={24} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
               {/* Resumo Geral */}
               <View style={styles.summaryCard}>
                 <View style={styles.summaryInfo}>
@@ -130,7 +225,7 @@ export default function BudgetScreen() {
                     <Text style={styles.summaryValue}>R$ {totalBudgeted.toLocaleString('pt-BR')}</Text>
                   </View>
                   <View style={styles.summaryBadge}>
-                    <Text style={styles.summaryBadgeText}>Mês Atual</Text>
+                    <Text style={styles.summaryBadgeText}>Meta Mensal</Text>
                   </View>
                 </View>
 
@@ -148,18 +243,48 @@ export default function BudgetScreen() {
                     <Text style={styles.summaryRemaining}>Resta R$ {(totalBudgeted - totalSpentInBudgets).toLocaleString('pt-BR')}</Text>
                   </View>
                 </View>
+
+                {dailyAllowance > 0 && (
+                  <View style={styles.dailyAdvice}>
+                    <MaterialCommunityIcons name="information-outline" size={16} color={theme.primary} />
+                    <Text style={styles.dailyAdviceText}>
+                      Para não estourar, você pode gastar até <Text style={{ fontWeight: 'bold', color: theme.text }}>R$ {dailyAllowance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text> por dia.
+                    </Text>
+                  </View>
+                )}
               </View>
 
-              <Text style={styles.sectionTitle}>Categorias</Text>
+              {goalSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  <Text style={styles.sectionTitle}>Sugestões de Metas</Text>
+                  {goalSuggestions.map((s, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.suggestionCard}
+                      onPress={() => router.push({ pathname: '/new-budget', params: { category: s.category } })}
+                    >
+                      <View style={styles.suggestionInfo}>
+                        <Ionicons name="bulb-outline" size={20} color={theme.warning} />
+                        <Text style={styles.suggestionText}>
+                          Você gastou <Text style={{ fontWeight: 'bold' }}>R$ {s.spent.toLocaleString('pt-BR')}</Text> com <Text style={{ fontWeight: 'bold' }}>{s.category}</Text>. Deseja criar uma meta?
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <Text style={styles.sectionTitle}>Minhas Metas</Text>
             </Animated.View>
           )}
-          renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(400 + index * 100).duration(800)}>
+          renderItem={({ item }) => (
+            <Animated.View key={`item-${item.id}-${currentMonth}`} entering={FadeIn.duration(320)}>
               <BudgetCard goal={item} spent={monthlyExpenses[item.category] || 0} />
             </Animated.View>
           )}
           ListEmptyComponent={() => (
-            <Animated.View entering={FadeIn.delay(400)} style={styles.emptyState}>
+            <Animated.View entering={FadeIn.duration(320)} style={styles.emptyState}>
               <Ionicons name="flag-outline" size={48} color={theme.textMuted} />
               <Text style={styles.emptyTitle}>Nenhuma meta definida</Text>
               <Text style={styles.emptySubtitle}>Defina orçamentos para controlar seus gastos por categoria.</Text>
@@ -216,6 +341,37 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 20,
+  },
+  monthArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  monthTitleContainer: {
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  monthName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.text,
+    textTransform: 'capitalize',
+  },
+  yearName: {
+    fontSize: 12,
+    color: theme.textMuted,
   },
   summaryCard: {
     backgroundColor: theme.surface,
@@ -276,12 +432,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  dailyAdvice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.primaryLight,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 20,
+    gap: 10,
+  },
+  dailyAdviceText: {
+    color: theme.textMuted,
+    fontSize: 12,
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.text,
     marginBottom: 16,
     marginLeft: 4,
+  },
+  suggestionsContainer: {
+    marginBottom: 24,
+  },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderStyle: 'dashed',
+  },
+  suggestionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  suggestionText: {
+    color: theme.text,
+    fontSize: 13,
+    flex: 1,
   },
   card: {
     backgroundColor: theme.surface,
@@ -306,6 +502,21 @@ const styles = StyleSheet.create({
   cardTitleContainer: {
     flex: 1,
     marginLeft: 12,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  alertBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  alertBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   cardCategory: {
     fontSize: 16,

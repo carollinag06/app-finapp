@@ -166,7 +166,7 @@ export default function ProfileScreen() {
             resetBudgets();
             resetCards();
             resetCategories();
-            router.replace('/login');
+            // Não redirecionamos manualmente, o RootLayout cuidará disso enviando para welcome
           } catch {
             console.error("Erro ao fazer logout");
             Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair. Tente novamente.");

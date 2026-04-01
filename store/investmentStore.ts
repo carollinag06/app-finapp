@@ -1,3 +1,4 @@
+import { differenceInBusinessDays, parseISO } from 'date-fns';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { safeStorage } from '../src/lib/storage';
@@ -16,6 +17,39 @@ export interface Investment {
   user_id?: string;
   created_at?: string;
 }
+
+// Função utilitária para calcular o saldo atualizado em tempo real
+export const calculateLiveBalance = (investment: Investment): number => {
+  if (!investment.cdi_percentage || !investment.date) {
+    return investment.current_amount || investment.amount;
+  }
+
+  try {
+    const startDate = parseISO(investment.date);
+    const today = new Date();
+    
+    // Se a data de início for futura, retorna o valor inicial
+    if (startDate > today) return investment.amount;
+
+    // CDI anual estimado (11.25%) e dias úteis por ano (252)
+    const ANNUAL_CDI = 0.1125;
+    const businessDays = differenceInBusinessDays(today, startDate);
+    
+    if (businessDays <= 0) return investment.amount;
+
+    // Taxa diária composta
+    const dailyRate = Math.pow(1 + ANNUAL_CDI, 1 / 252) - 1;
+    const cdiFactor = investment.cdi_percentage / 100;
+    
+    // Cálculo de juros compostos sobre os dias úteis passados
+    const currentBalance = investment.amount * Math.pow(1 + (dailyRate * cdiFactor), businessDays);
+    
+    return Number(currentBalance.toFixed(2));
+  } catch (error) {
+    console.error("Erro ao calcular saldo live:", error);
+    return investment.current_amount || investment.amount;
+  }
+};
 
 interface InvestmentStore {
   investments: Investment[];

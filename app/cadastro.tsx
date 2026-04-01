@@ -103,7 +103,7 @@ export default function RegisterScreen() {
     } else {
       // Se precisar de confirmação de e-mail, avise o usuário
       if (data.session) {
-        router.replace('/(tabs)');
+        // O RootLayout irá detectar a sessão e redirecionar automaticamente para /(tabs)
       } else {
         Alert.alert("Sucesso", "Cadastro realizado com sucesso! Por favor, verifique seu e-mail para confirmar a conta e poder acessar o app.", [
           { text: "OK", onPress: () => router.replace('/login') }
@@ -125,7 +125,7 @@ export default function RegisterScreen() {
           >
             {/* --- HEADER --- */}
             <Animated.View
-              entering={FadeInUp.duration(800)}
+              entering={FadeInUp.duration(720)}
               style={styles.headerContainer}
             >
               <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
@@ -140,7 +140,7 @@ export default function RegisterScreen() {
 
             {/* --- FORMULÁRIO --- */}
             <Animated.View
-              entering={FadeInDown.delay(200).duration(800)}
+              entering={FadeInDown.delay(200).duration(720)}
               style={styles.formContainer}
             >
 
@@ -258,7 +258,7 @@ export default function RegisterScreen() {
             </Animated.View>
 
             {/* --- RODAPÉ / LOGIN --- */}
-            <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.footerContainer}>
+            <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.footerContainer}>
               <Text style={styles.footerText}>
                 Já tem uma conta?{' '}
                 <Text

@@ -12,7 +12,7 @@ import {
 import { PieChart } from 'react-native-chart-kit';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Investment, useInvestmentStore } from '../../store/investmentStore';
+import { calculateLiveBalance, Investment, useInvestmentStore } from '../../store/investmentStore';
 
 const { width: screenWidth } = Dimensions.get('window');
 const chartWidth = screenWidth - 48;
@@ -57,7 +57,7 @@ export default function InvestmentsScreen() {
 
   const stats = useMemo(() => {
     const totalInvested = investments.reduce((acc, i) => acc + i.amount, 0);
-    const currentTotal = investments.reduce((acc, i) => acc + (i.current_amount || i.amount), 0);
+    const currentTotal = investments.reduce((acc, i) => acc + calculateLiveBalance(i), 0);
     const profit = currentTotal - totalInvested;
     const profitability = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
 
@@ -68,7 +68,7 @@ export default function InvestmentsScreen() {
 
     const dailyYield = investments.reduce((acc, inv) => {
       if (inv.cdi_percentage) {
-        const saldoParaCalculo = inv.current_amount || inv.amount;
+        const saldoParaCalculo = calculateLiveBalance(inv);
         const cdiFactor = inv.cdi_percentage / 100;
         const rendimentoDiario = saldoParaCalculo * DAILY_RATE * cdiFactor;
         return acc + rendimentoDiario;
@@ -83,7 +83,7 @@ export default function InvestmentsScreen() {
     const counts: Record<string, number> = {};
     investments.forEach(i => {
       const typeStr = i.type || 'Outros';
-      counts[typeStr] = (counts[typeStr] || 0) + (i.current_amount || i.amount);
+      counts[typeStr] = (counts[typeStr] || 0) + calculateLiveBalance(i);
     });
 
     return Object.entries(counts).map(([name, value]) => ({
@@ -96,7 +96,7 @@ export default function InvestmentsScreen() {
   }, [investments]);
 
   const renderInvestmentItem = ({ item }: { item: Investment }) => {
-    const currentAmount = item.current_amount || item.amount;
+    const currentAmount = calculateLiveBalance(item);
     const profit = currentAmount - item.amount;
     const isProfit = profit >= 0;
 
@@ -131,7 +131,7 @@ export default function InvestmentsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Animated.View entering={FadeInUp.duration(800)} style={styles.header}>
+      <Animated.View entering={FadeInUp.duration(720)} style={styles.header}>
         <View>
           <Text style={styles.headerSubtitle}>Meus</Text>
           <Text style={styles.headerTitle}>Investimentos</Text>
@@ -149,7 +149,7 @@ export default function InvestmentsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Resumo Geral */}
-        <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.summaryCard}>
+        <Animated.View entering={FadeInDown.delay(200).duration(720)} style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Patrimônio Total</Text>
           <Text style={styles.summaryValue}>R$ {stats.currentTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
 
@@ -181,7 +181,7 @@ export default function InvestmentsScreen() {
 
         {/* Gráfico de Distribuição */}
         {investments.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.section}>
+          <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.section}>
             <Text style={styles.sectionTitle}>Distribuição da Carteira</Text>
             <View style={styles.chartCard}>
               <PieChart
@@ -202,7 +202,7 @@ export default function InvestmentsScreen() {
         )}
 
         {/* Lista de Investimentos */}
-        <Animated.View entering={FadeInDown.delay(600).duration(800)} style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(600).duration(720)} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Ativos</Text>
             <Text style={styles.assetsCount}>{investments.length} ativos</Text>
@@ -210,7 +210,7 @@ export default function InvestmentsScreen() {
 
           {investments.length > 0 ? (
             investments.map((item, index) => (
-              <Animated.View key={item.id} entering={FadeInDown.delay(800 + index * 100).duration(800)}>
+              <Animated.View key={item.id} entering={FadeInDown.delay(800 + index * 100).duration(720)}>
                 {renderInvestmentItem({ item })}
               </Animated.View>
             ))

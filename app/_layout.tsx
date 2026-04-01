@@ -1,4 +1,4 @@
-import { Stack, router, useRootNavigationState } from 'expo-router';
+import { Stack, router, useRootNavigationState, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -30,7 +30,9 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in 
 
 export default function RootLayout() {
   const rootNavigationState = useRootNavigationState();
+  const segments = useSegments();
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [session, setSession] = useState<any>(null);
 
   const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
   const fetchBudgets = useBudgetStore((state) => state.fetchBudgets);
@@ -42,6 +44,7 @@ export default function RootLayout() {
     // Escuta mudanças no estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`Evento de Auth: ${event}`, session ? 'Sessão Ativa' : 'Sem Sessão');
+      setSession(session);
       setIsAuthReady(true);
       
       if (session) {
@@ -59,24 +62,32 @@ export default function RootLayout() {
     };
   }, [fetchTransactions, fetchBudgets, fetchCards, fetchCategories, fetchInvestments]);
 
-  // Efeito separado para lidar com a navegação inicial após o Root estar montado
+  // Efeito centralizado para lidar com a navegação baseada no estado de autenticação
   useEffect(() => {
+    // Aguarda a navegação estar pronta e o estado de auth inicial ser carregado
     if (!rootNavigationState?.key || !isAuthReady) return;
 
-    const handleInitialNavigation = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        console.log('Navegando para (tabs) - Sessão ativa');
+    const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'cadastro';
+
+    if (session) {
+      // Se estiver logado e em uma tela de auth, redireciona para o app
+      if (inAuthGroup) {
+        console.log('Usuário logado em tela de auth - Redirecionando para (tabs)');
         router.replace('/(tabs)');
-      } else {
-        console.log('Navegando para welcome - Nenhuma sessão');
+      }
+    } else {
+      // Se NÃO estiver logado e NÃO estiver em uma tela de auth, redireciona para welcome
+      if (!inAuthGroup) {
+        console.log('Usuário deslogado em tela protegida - Redirecionando para welcome');
+        
+        // Limpa o histórico para evitar o botão "voltar"
+        if (router.canGoBack()) {
+          router.dismissAll();
+        }
         router.replace('/welcome');
       }
-    };
-
-    handleInitialNavigation();
-  }, [rootNavigationState?.key, isAuthReady]);
+    }
+  }, [session, isAuthReady, segments, rootNavigationState?.key]);
 
   return (
     <SafeAreaProvider>
@@ -86,54 +97,58 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="login" />
           <Stack.Screen name="cadastro" />
-          <Stack.Screen name="(tabs)" />
 
-          {/* Modal do botão central flutuante */}
-          <Stack.Screen
-            name="new-transaction"
-            options={{
-              presentation: 'modal',
-              headerShown: true,
-              title: 'Nova Transação',
-              headerStyle: { backgroundColor: '#1E1E1E' },
-              headerTintColor: '#FFFFFF',
-            }}
-          />
-          <Stack.Screen
-            name="new-card"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="profile"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="categories"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="new-investment"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="investment-details"
-            options={{
-              presentation: 'modal',
-              headerShown: false,
-            }}
-          />
+          {/* Só permite acesso ao grupo (tabs) e modais se houver sessão */}
+          {session ? (
+            <>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="new-transaction"
+                options={{
+                  presentation: 'modal',
+                  headerShown: true,
+                  title: 'Nova Transação',
+                  headerStyle: { backgroundColor: '#1E1E1E' },
+                  headerTintColor: '#FFFFFF',
+                }}
+              />
+              <Stack.Screen
+                name="new-card"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="profile"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="categories"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="new-investment"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="investment-details"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false,
+                }}
+              />
+            </>
+          ) : null}
         </Stack>
       </GestureHandlerRootView>
     </SafeAreaProvider>

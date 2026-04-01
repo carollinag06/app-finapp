@@ -12,7 +12,7 @@ import {
   View
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useCategoryStore } from '../../store/categoryStore';
@@ -491,11 +491,11 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Animated.View entering={FadeInUp.duration(800)}>
+      <Animated.View entering={FadeInUp.duration(720)}>
         <Header />
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+      <Animated.View entering={FadeInDown.delay(200).duration(720)}>
         <MonthSelector
           currentMonth={currentMonth}
           currentYear={currentYear}
@@ -505,7 +505,7 @@ export default function AnalyticsScreen() {
       </Animated.View>
 
       {/* NAVEGAÇÃO SUPERIOR (Sub-tabs) */}
-      <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.subTabsWrapper}>
+      <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.subTabsWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subTabsContainer}>
           <TouchableOpacity style={[styles.subTabItem, activeTab === 'geral' && styles.subTabItemActive]} onPress={() => setActiveTab('geral')}>
             <Text style={[styles.subTabText, activeTab === 'geral' && styles.subTabTextActive]}>Geral</Text>
@@ -530,7 +530,7 @@ export default function AnalyticsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Filtros em formato de Pill */}
-        <Animated.View entering={FadeInDown.delay(600).duration(800)}>
+        <Animated.View entering={FadeInDown.delay(600).duration(720)}>
           <View style={styles.filtersContainer}>
             <TouchableOpacity
               style={[styles.filterPill, activeFilter === 'mensal' && styles.filterPillActive]}
@@ -550,7 +550,7 @@ export default function AnalyticsScreen() {
         </Animated.View>
 
         {monthlyTransactions.length === 0 ? (
-          <Animated.View entering={FadeIn.delay(800)} style={styles.emptyStateContainer}>
+          <Animated.View entering={FadeIn.delay(800).duration(270)} style={styles.emptyStateContainer}>
             <View style={styles.emptyStateIconBg}>
               <MaterialCommunityIcons name="chart-bar" size={48} color={theme.textMuted} />
             </View>
@@ -561,7 +561,7 @@ export default function AnalyticsScreen() {
           <>
             {/* NOVO: Total da aba ativa (Receita ou Despesa ou Cartão) */}
             {activeTab !== 'geral' && (
-              <Animated.View entering={FadeInDown.delay(800).duration(800)} style={[
+              <Animated.View entering={FadeInDown.delay(800).duration(720)} style={[
                 styles.totalTabCard,
                 { borderColor: activeTab === 'receitas' ? `${theme.success}30` : activeTab === 'cartao' ? `${theme.warning}30` : `${theme.danger}30` }
               ]}>
@@ -593,7 +593,7 @@ export default function AnalyticsScreen() {
             )}
 
             {/* CARD 1: Evolução (Linha) */}
-            <Animated.View entering={FadeInDown.delay(1000).duration(800)}>
+            <Animated.View entering={FadeInDown.delay(1000).duration(720)}>
               <ChartCard
                 title={activeTab === 'geral' ? "Fluxo de Caixa" : `Histórico de ${activeTab === 'receitas' ? 'Receitas' : 'Despesas'}`}
                 subtitle={activeFilter === 'mensal' ? "Visão mensal agrupada" : "Detalhamento diário"}
@@ -628,7 +628,7 @@ export default function AnalyticsScreen() {
             {activeTab === 'geral' ? (
               <>
                 {/* CARD 2 GERAL: Resumo do Mês */}
-                <Animated.View entering={FadeInDown.delay(1200).duration(800)} style={styles.summaryGrid}>
+                <Animated.View entering={FadeInDown.delay(1200).duration(720)} style={styles.summaryGrid}>
                   <View style={[styles.summarySmallCard, { borderColor: `${theme.success}30` }]}>
                     <View style={[styles.summaryIconBg, { backgroundColor: theme.successLight }]}>
                       <Ionicons name="trending-up" size={20} color={theme.success} />

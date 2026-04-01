@@ -378,7 +378,7 @@ export default function TransactionsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(800)}>
+        <Animated.View entering={FadeInUp.duration(720)}>
           <Header
             isSearching={isSearching}
             onSearchToggle={() => {
@@ -393,7 +393,7 @@ export default function TransactionsScreen() {
         </Animated.View>
 
         {!isSearching && (
-          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(200).duration(720)}>
             <MonthSelector
               currentMonth={currentMonth}
               currentYear={currentYear}
@@ -412,19 +412,19 @@ export default function TransactionsScreen() {
           ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
 
           renderSectionHeader={({ section: { title } }) => (
-            <Animated.View entering={FadeIn.delay(400).duration(800)}>
+            <Animated.View entering={FadeIn.delay(400).duration(720)}>
               <Text style={styles.sectionTitle}>{title}</Text>
             </Animated.View>
           )}
 
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(600 + index * 50).duration(800)}>
+            <Animated.View entering={FadeInDown.delay(600 + index * 50).duration(720)}>
               <TransactionItem item={item} onDelete={handleDelete} />
             </Animated.View>
           )}
 
           ListEmptyComponent={
-            <Animated.View entering={FadeIn.delay(400)} style={{ padding: 40, alignItems: 'center' }}>
+            <Animated.View entering={FadeIn.delay(400).duration(270)} style={{ padding: 40, alignItems: 'center' }}>
               <Ionicons name="search-outline" size={48} color={theme.border} style={{ marginBottom: 16 }} />
               <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
             </Animated.View>

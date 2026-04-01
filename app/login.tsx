@@ -72,7 +72,8 @@ export default function LoginScreen() {
       Alert.alert('Erro no Login', errorMessage);
       setLoading(false);
     } else {
-      router.replace('/(tabs)');
+      // O RootLayout irá detectar a sessão e redirecionar automaticamente para /(tabs)
+      // Não chamamos router.replace aqui para evitar conflitos de navegação inicial
     }
   };
 
@@ -101,7 +102,7 @@ export default function LoginScreen() {
         >
           {/* --- HEADER / LOGO --- */}
           <Animated.View
-            entering={FadeInUp.duration(800)}
+            entering={FadeInUp.duration(720)}
             style={styles.headerContainer}
           >
             <Image
@@ -114,7 +115,7 @@ export default function LoginScreen() {
 
           {/* --- FORMULÁRIO --- */}
           <Animated.View
-            entering={FadeInDown.delay(200).duration(800)}
+            entering={FadeInDown.delay(200).duration(720)}
             style={styles.formContainer}
           >
             {/* Input de E-mail */}
@@ -184,7 +185,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* --- RODAPÉ / CADASTRAR --- */}
-          <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.footerContainer}>
+          <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.footerContainer}>
             <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
             <TouchableOpacity onPress={() => router.push('/cadastro')} disabled={loading}>
               <Text style={styles.registerText}>Cadastre-se</Text>

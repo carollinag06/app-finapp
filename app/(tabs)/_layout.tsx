@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { router, Tabs } from 'expo-router';
+import { Redirect, router, Tabs } from 'expo-router';
 import React, { useRef } from 'react';
 import {
   Animated,
@@ -11,7 +11,9 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../src/lib/supabase';
 
+// --- TEMA ---
 const theme = {
   bg: '#0F0F0F',
   surface: '#1A1A1F',
@@ -61,10 +63,31 @@ const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const [session, setSession] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) return null;
+
+  // Se não houver sessão, redireciona para welcome IMEDIATAMENTE
+  if (!session) {
+    return <Redirect href="/welcome" />;
+  }
 
   // Aumentamos o padding inferior de forma equilibrada para Android e iOS
-  // No Android com botões de navegação (insets.bottom === 0), usamos 12px de segurança.
-  // No modo gestos (insets.bottom > 0), usamos o valor do sistema + 4px de respiro.
   const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'android' ? 12 : 12);
   const barHeight = 60 + bottomPadding;
 
@@ -161,6 +184,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trending-up-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="metas"
+        options={{
+          href: null,
         }}
       />
 

@@ -97,7 +97,7 @@ export default function MoreScreen() {
           resetBudgets();
           resetCards();
           resetCategories();
-          router.replace('/login');
+          // Não precisamos de router.replace aqui, o onAuthStateChange no _layout cuidará disso
         }
       }
     ]);
@@ -138,7 +138,7 @@ export default function MoreScreen() {
     {
       title: 'Planejamento',
       items: [
-        { id: 'budget', title: 'Metas e Orçamentos', subtitle: 'Definir limites de gastos', icon: 'flag-outline', color: '#FFD60A', onPress: () => router.push('/budget') },
+        { id: 'metas', title: 'Metas e Orçamentos', subtitle: 'Definir limites de gastos', icon: 'flag-outline', color: '#FFD60A', onPress: () => router.push('/metas') },
         { id: 'categories', title: 'Categorias', subtitle: 'Personalizar gastos e receitas', icon: 'pricetag-outline', color: '#FFEB3B', onPress: () => router.push('/categories') },
         {
           id: 'notifications', title: 'Notificações', subtitle: notificationsEnabled ? 'Ativadas' : 'Desativadas', icon: notificationsEnabled ? 'notifications-outline' : 'notifications-off-outline', color: '#FF9800', onPress: () => {
@@ -167,7 +167,7 @@ export default function MoreScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(800)}>
+        <Animated.View entering={FadeInUp.duration(650)}>
           <Header />
         </Animated.View>
 
@@ -176,7 +176,7 @@ export default function MoreScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Card do Perfil Rápido */}
-          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(200).duration(650)}>
             <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/profile')}>
               <View style={styles.avatar}>
                 {user?.user_metadata?.avatar_url ? (
@@ -197,7 +197,7 @@ export default function MoreScreen() {
 
           {/* Seções do Menu */}
           {menuSections.map((section, idx) => (
-            <Animated.View key={idx} entering={FadeInDown.delay(400 + idx * 100).duration(800)} style={styles.section}>
+            <Animated.View key={idx} entering={FadeInDown.delay(400 + idx * 100).duration(650)} style={styles.section}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <View style={styles.menuContainer}>
                 {section.items.map((item, itemIdx) => (
@@ -214,7 +214,7 @@ export default function MoreScreen() {
           ))}
 
           {/* Botão Sair */}
-          <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(800).duration(650)}>
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={handleLogout}

@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -19,7 +20,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../../src/lib/supabase';
 import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { CreditCard, useCardStore } from '../../store/cardStore';
-import { useInvestmentStore } from '../../store/investmentStore';
+import { calculateLiveBalance, useInvestmentStore } from '../../store/investmentStore';
 import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- TIPAGEM ---
@@ -31,6 +32,7 @@ interface InvoiceAlert {
   daysRemaining: number;
   month: number;
   year: number;
+  type: 'closing' | 'due';
 }
 
 const MAX_WIDTH = 600; // Largura máxima para desktop
@@ -88,7 +90,6 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
           <Text style={styles.welcomeText}>Sua saúde financeira está ótima!</Text>
         </View>
         <View style={styles.headerIconsRow}>
-
           <TouchableOpacity style={styles.iconCircleHeader} onPress={() => router.push('/profile')}>
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.headerAvatar} />
@@ -221,14 +222,14 @@ const AtalhosRapidos = () => {
         <Text style={styles.shortcutText}>Lançar</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/budget')}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/metas')}>
         <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}>
           <Ionicons name="pie-chart-outline" size={24} color={theme.success} />
         </View>
         <Text style={styles.shortcutText}>Orçamento</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/budget')}>
+      <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/metas')}>
         <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
           <Ionicons name="flag-outline" size={24} color="#2196F3" />
         </View>
@@ -329,49 +330,72 @@ const InvoiceAlerts = ({ alerts, onMarkAsPaid }: { alerts: InvoiceAlert[], onMar
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Alertas de Fatura</Text>
+        <Text style={styles.sectionTitle}>Alertas de Cartão</Text>
       </View>
-      {alerts.map((alert) => {
-        let alertColor = theme.warning; // 5 dias
-        if (alert.daysRemaining <= 1) alertColor = theme.danger; // 1 dia
-        else if (alert.daysRemaining <= 3) alertColor = '#FF9800'; // 3 dias (Laranja)
+      {alerts.map((alert, idx) => {
+        const isClosing = alert.type === 'closing';
+        // Fechamento: Azul/Ciano, Vencimento: Laranja/Vermelho
+        let alertColor = isClosing ? '#00B0FF' : theme.warning;
+        if (!isClosing) {
+          if (alert.daysRemaining <= 1) alertColor = theme.danger;
+          else if (alert.daysRemaining <= 3) alertColor = '#FF9800';
+        }
+
+        if (isClosing) {
+          return (
+            <TouchableOpacity
+              key={`${alert.cardId}-${alert.type}-${idx}`}
+              style={[styles.alertCardMini, { borderColor: `${alertColor}30`, backgroundColor: `${alertColor}05` }]}
+              onPress={() => router.push('/cards')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.alertIconCircleSmall, { backgroundColor: `${alertColor}20` }]}>
+                <Ionicons name="lock-open-outline" size={14} color={alertColor} />
+              </View>
+              <Text style={styles.alertTitleMini}>Fatura {alert.cardName} fecha <Text style={{ color: alertColor, fontWeight: 'bold' }}>hoje</Text></Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.textMuted} />
+            </TouchableOpacity>
+          );
+        }
 
         return (
-          <View key={alert.cardId} style={[styles.alertCard, { borderColor: alertColor }]}>
+          <View key={`${alert.cardId}-${alert.type}-${idx}`} style={[styles.alertCard, { borderColor: `${alertColor}50`, backgroundColor: `${alertColor}08` }]}>
             <View style={styles.alertHeader}>
-              <Ionicons name="warning" size={20} color={alertColor} />
-              <Text style={[styles.alertTitle, { color: alertColor }]}>Fatura próxima do vencimento</Text>
-            </View>
-
-            <View style={styles.alertContent}>
-              <View style={styles.alertInfoRow}>
-                <Text style={styles.alertLabel}>Cartão:</Text>
-                <Text style={styles.alertValue}>{alert.cardName}</Text>
+              <View style={[styles.alertIconCircle, { backgroundColor: `${alertColor}20` }]}>
+                <Ionicons name="alert-circle" size={18} color={alertColor} />
               </View>
-              <View style={styles.alertInfoRow}>
-                <Text style={styles.alertLabel}>Valor:</Text>
-                <Text style={styles.alertValue}>R$ {alert.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.alertTitle, { color: theme.text }]}>Vencimento Próximo</Text>
+                <Text style={styles.alertCardName}>{alert.cardName}</Text>
               </View>
-              <View style={styles.alertInfoRow}>
-                <Text style={styles.alertLabel}>Vence em:</Text>
-                <Text style={[styles.alertValue, { color: alertColor, fontWeight: 'bold' }]}>
-                  {alert.daysRemaining === 0 ? 'Hoje' : alert.daysRemaining === 1 ? '1 dia' : `${alert.daysRemaining} dias`}
+              <View style={[styles.alertTimeTag, { backgroundColor: `${alertColor}15` }]}>
+                <Text style={[styles.alertTimeText, { color: alertColor }]}>
+                  {alert.daysRemaining === 0 ? 'Vence HOJE' : `Em ${alert.daysRemaining} ${alert.daysRemaining === 1 ? 'dia' : 'dias'}`}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.alertFooter}>
+            <View style={styles.alertValueRow}>
+              <Text style={styles.alertValueLabel}>Valor da Fatura:</Text>
+              <Text style={[styles.alertValueMain, { color: alertColor }]}>
+                R$ {alert.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+
+            <View style={styles.alertFooterCompact}>
               <TouchableOpacity
-                style={styles.alertDetailButton}
+                style={styles.alertActionLink}
                 onPress={() => router.push('/cards')}
               >
-                <Text style={styles.alertDetailButtonText}>Ver fatura</Text>
+                <Text style={styles.alertActionLinkText}>Ver detalhes</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.alertPayButton, { backgroundColor: alertColor }]}
+                style={[styles.alertPayButtonAction, { backgroundColor: alertColor }]}
                 onPress={() => onMarkAsPaid(alert.cardId)}
+                activeOpacity={0.8}
               >
-                <Text style={styles.alertPayButtonText}>Marcar como paga</Text>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#000" style={{ marginRight: 6 }} />
+                <Text style={styles.alertActionBtnText}>Marcar como Paga</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -392,7 +416,7 @@ export default function Dashboard() {
 
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
-  const { cards, markInvoiceAsPaid, isInvoicePaid } = useCardStore();
+  const { cards, markInvoiceAsPaid, isInvoicePaid, paidInvoices } = useCardStore();
   const { investments, fetchInvestments } = useInvestmentStore();
 
   useEffect(() => {
@@ -405,72 +429,95 @@ export default function Dashboard() {
   }, [fetchInvestments]);
 
   // Alertas de Fatura
+  // Alertas de Fatura - Versão Corrigida para "Hoje"
   const invoiceAlerts = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const now = new Date();
+    // Zera ABSOLUTAMENTE horas, minutos, segundos e ms para comparação pura de dias
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
-    return cards.map((card: CreditCard) => {
-      // Valor da fatura (transações de crédito do cartão no mês atual)
+    const realMonth = today.getMonth();
+    const realYear = today.getFullYear();
+
+    const alerts: InvoiceAlert[] = [];
+
+    cards.forEach((card: CreditCard) => {
+      // 1. Soma o valor de CRÉDITO deste cartão (independente do mês selecionado)
       const invoiceValue = transactions
-        .filter((t: Transaction) => t.cardId === card.id && t.paymentMethod === 'credit')
+        .filter((t: Transaction) =>
+          String(t.cardId) === String(card.id) &&
+          t.paymentMethod === 'credit'
+        )
         .reduce((acc: number, t: Transaction) => acc + t.value, 0);
 
-      if (invoiceValue === 0) return null;
+      // Se não tem gasto, não tem alerta
+      if (invoiceValue <= 0) return;
 
-      // Se já foi paga, não mostra alerta
-      if (isInvoicePaid(card.id, currentMonth, currentYear)) return null;
+      // --- LÓGICA DE FECHAMENTO ---
+      let closingDate = new Date(realYear, realMonth, Number(card.closing_day), 0, 0, 0, 0);
+      if (today > closingDate) closingDate.setMonth(closingDate.getMonth() + 1);
 
-      // Cálculo de dias restantes
-      const dueDate = new Date(currentYear, currentMonth, card.due_day);
+      const diffClosing = Math.ceil((closingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Se a data de vencimento já passou este mês, olha para o próximo mês
-      // (Isso é uma simplificação, em apps reais depende do dia de fechamento)
-      if (dueDate < today && today.getDate() > card.due_day) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
+      if (diffClosing >= 0 && diffClosing <= 1) {
+        alerts.push({
+          cardId: card.id, cardName: card.name, value: invoiceValue,
+          daysRemaining: diffClosing, month: closingDate.getMonth(), year: closingDate.getFullYear(),
+          type: 'closing'
+        });
       }
 
-      const diffTime = dueDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // --- LÓGICA DE VENCIMENTO (FOCO EM "HOJE") ---
+      const paga = isInvoicePaid(card.id, realMonth, realYear);
 
-      // Só alerta se faltar 5 dias ou menos
-      if (diffDays >= 0 && diffDays <= 5) {
-        return {
-          cardId: card.id,
-          cardName: card.name,
-          value: invoiceValue,
-          daysRemaining: diffDays,
-          month: currentMonth,
-          year: currentYear
-        } as InvoiceAlert;
+      if (!paga) {
+        // Criamos a data de vencimento também zerada
+        const dueDate = new Date(realYear, realMonth, Number(card.due_day), 0, 0, 0, 0);
+
+        // Cálculo preciso de dias
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDue = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        // CONDIÇÃO: Se faltar 7 dias, se for HOJE (0) ou se estiver atrasada (negativo)
+        if (diffDue <= 7) {
+          alerts.push({
+            cardId: card.id,
+            cardName: card.name,
+            value: invoiceValue,
+            daysRemaining: diffDue,
+            month: realMonth,
+            year: realYear,
+            type: 'due'
+          });
+        }
       }
+    });
 
-      return null;
-    }).filter((a): a is InvoiceAlert => a !== null);
-  }, [cards, transactions, isInvoicePaid]);
+    // Ordenação: Atrasadas e "Hoje" primeiro
+    return alerts.sort((a, b) => a.daysRemaining - b.daysRemaining);
+  }, [cards, transactions, isInvoicePaid, paidInvoices]);
 
   const handleMarkAsPaid = (cardId: string) => {
     const today = new Date();
     markInvoiceAsPaid(cardId, today.getMonth(), today.getFullYear());
+    Alert.alert("Sucesso", "Fatura marcada como paga com sucesso!");
   };
 
-  // Investimentos reais
+  // Investimentos reais com rendimento acumulado automático
   const totalInvestido = useMemo(() =>
-    investments.reduce((acc, inv) => acc + (inv.current_amount || inv.amount), 0)
+    investments.reduce((acc, inv) => acc + calculateLiveBalance(inv), 0)
     , [investments]);
 
   const rendimentoEstimado = useMemo(() => {
-    // Cálculo mais preciso usando taxa CDI anual de 11.25% (SELIC atual estimada)
-    // Baseado em 252 dias úteis por ano (padrão de mercado financeiro no Brasil)
+    // Cálculo do rendimento que será ganho HOJE (taxa diária sobre o saldo atual)
     const ANNUAL_CDI = 0.1125;
     const DAILY_RATE = Math.pow(1 + ANNUAL_CDI, 1 / 252) - 1;
 
     return investments.reduce((acc, inv) => {
       if (inv.cdi_percentage) {
-        const saldoParaCalculo = inv.current_amount || inv.amount;
+        const saldoAtualInv = calculateLiveBalance(inv);
         const cdiFactor = inv.cdi_percentage / 100;
-        const rendimentoDiario = saldoParaCalculo * DAILY_RATE * cdiFactor;
-        return acc + rendimentoDiario;
+        const rendimentoHoje = saldoAtualInv * DAILY_RATE * cdiFactor;
+        return acc + rendimentoHoje;
       }
       return acc;
     }, 0);
@@ -538,7 +585,7 @@ export default function Dashboard() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(800)}>
+        <Animated.View entering={FadeInUp.duration(720)}>
           <Header
             currentMonth={currentMonth}
             currentYear={currentYear}
@@ -552,7 +599,7 @@ export default function Dashboard() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={FadeInDown.delay(200).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(200).duration(720)}>
             <CardSaldo
               mostrarSaldo={mostrarSaldo}
               toggleSaldo={() => setMostrarSaldo(!mostrarSaldo)}
@@ -564,24 +611,24 @@ export default function Dashboard() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(400).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(400).duration(720)}>
             <AtalhosRapidos />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(600).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(600).duration(720)}>
             <HealthCard />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(800).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(800).duration(720)}>
             <InvoiceAlerts alerts={invoiceAlerts} onMarkAsPaid={handleMarkAsPaid} />
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(1000).duration(800)}>
+          <Animated.View entering={FadeInDown.delay(1000).duration(720)}>
             <TransacoesRecentes transactions={monthlyTransactions} />
           </Animated.View>
 
           {/* Card de Investimento Real */}
-          <Animated.View entering={FadeInDown.delay(1200).duration(800)} style={styles.section}>
+          <Animated.View entering={FadeInDown.delay(1200).duration(720)} style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Investimentos</Text>
               <TouchableOpacity onPress={() => router.push('/investimentos')}>
@@ -756,17 +803,17 @@ const styles = StyleSheet.create({
   pendingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 64, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginTop: 12,
-    alignSelf: 'flex-start',
     gap: 6,
+    backgroundColor: 'rgba(255, 215, 64, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
   },
   pendingText: {
     color: theme.warning,
-    fontSize: 12,
+    fontSize: 13,
   },
   progressContainer: {
     marginTop: 24,
@@ -990,70 +1037,118 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  // Alerta de Fatura
+  // Alertas de Fatura
   alertCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 10,
+  },
+  alertCardMini: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+    gap: 10,
   },
   alertHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
+    gap: 10,
+  },
+  alertIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertIconCircleSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   alertTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  alertContent: {
-    gap: 8,
-    marginBottom: 20,
-  },
-  alertInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  alertLabel: {
-    color: theme.textMuted,
-    fontSize: 14,
-  },
-  alertValue: {
-    color: theme.text,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  alertFooter: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  alertDetailButton: {
+  alertTitleMini: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertDetailButtonText: {
+    fontSize: 13,
     color: theme.text,
-    fontSize: 14,
-    fontWeight: '600',
   },
-  alertPayButton: {
-    flex: 1.5,
-    height: 44,
-    borderRadius: 12,
+  alertCardName: {
+    fontSize: 12,
+    color: theme.textMuted,
+    marginTop: 1,
+  },
+  alertSubtitle: {
+    fontSize: 12,
+    color: theme.textMuted,
+    marginTop: 2,
+  },
+  alertValueRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
-  alertPayButtonText: {
+  alertValueLabel: {
+    fontSize: 12,
+    color: theme.textMuted,
+  },
+  alertValueMain: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  alertTimeTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+  },
+  alertTimeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  alertFooterCompact: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 15,
+  },
+  alertActionLink: {
+    paddingVertical: 4,
+  },
+  alertActionLinkText: {
+    color: theme.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  alertActionBtnCompact: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  alertPayButtonAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  alertActionBtnText: {
     color: '#000',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });

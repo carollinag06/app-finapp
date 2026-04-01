@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Alert,
   FlatList,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CreditCard, useCardStore } from '../store/cardStore';
+import { useTransactionStore } from '../store/transactionStore';
 
 const theme = {
   bg: '#0F0F12',
@@ -22,67 +23,98 @@ const theme = {
   primary: '#8A2BE2',
   border: '#2C2C2E',
   danger: '#FF453A',
+  warning: '#FFD740',
 };
 
-const CardItem = ({ card, onEdit, onDelete }: { card: CreditCard, onEdit: (id: string) => void, onDelete: (id: string) => void }) => {
+const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
+  card: CreditCard,
+  onEdit: (id: string) => void,
+  onDelete: (id: string) => void,
+  closingAlert?: { days: number },
+  dueAlert?: { days: number }
+}) => {
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={() => onEdit(card.id)}
-      style={styles.cardWrapper}
-    >
-      <LinearGradient
-        colors={[card.color, `${card.color}99`]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.cardGradient}
+    <View style={styles.cardWrapper}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => onEdit(card.id)}
       >
-        <View style={styles.cardContent}>
-          <View style={styles.cardTop}>
-            <View style={styles.cardChip}>
-              <View style={styles.chipLine} />
-              <View style={styles.chipLine} />
-              <View style={styles.chipLine} />
-            </View>
-            <Text style={styles.cardBrand}>{card.brand}</Text>
-          </View>
-
-          <View style={styles.cardMiddle}>
-            <Text style={styles.cardName}>{card.name.toUpperCase()}</Text>
-            <Text style={styles.cardLimitLabel}>LIMITE TOTAL</Text>
-            <Text style={styles.cardLimitValue}>
-              R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </Text>
-          </View>
-
-          <View style={styles.cardBottom}>
-            <View style={styles.cardDates}>
-              <View style={styles.dateInfo}>
-                <Text style={styles.dateLabel}>FECHA</Text>
-                <Text style={styles.dateValue}>{card.closing_day.toString().padStart(2, '0')}</Text>
+        <LinearGradient
+          colors={[card.color, `${card.color}99`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardGradient}
+        >
+          <View style={styles.cardContent}>
+            <View style={styles.cardTop}>
+              <View style={styles.cardChip}>
+                <View style={styles.chipLine} />
+                <View style={styles.chipLine} />
+                <View style={styles.chipLine} />
               </View>
-              <View style={styles.dateInfo}>
-                <Text style={styles.dateLabel}>VENCE</Text>
-                <Text style={styles.dateValue}>{card.due_day.toString().padStart(2, '0')}</Text>
-              </View>
+              <Text style={styles.cardBrand}>{card.brand}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.deleteIconButton}
-              onPress={() => onDelete(card.id)}
-            >
-              <Ionicons name="trash-outline" size={20} color="#FFF" />
-            </TouchableOpacity>
+            <View style={styles.cardMiddle}>
+              <Text style={styles.cardName}>{card.name.toUpperCase()}</Text>
+              <Text style={styles.cardLimitLabel}>LIMITE TOTAL</Text>
+              <Text style={styles.cardLimitValue}>
+                R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+
+            <View style={styles.cardBottom}>
+              <View style={styles.cardDates}>
+                <View style={styles.dateInfo}>
+                  <Text style={styles.dateLabel}>FECHA</Text>
+                  <Text style={styles.dateValue}>{card.closing_day.toString().padStart(2, '0')}</Text>
+                </View>
+                <View style={styles.dateInfo}>
+                  <Text style={styles.dateLabel}>VENCE</Text>
+                  <Text style={styles.dateValue}>{card.due_day.toString().padStart(2, '0')}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.deleteIconButton}
+                onPress={() => onDelete(card.id)}
+              >
+                <Ionicons name="trash-outline" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
           </View>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Alertas */}
+      {(closingAlert || dueAlert) && (
+        <View style={styles.alertsContainer}>
+          {closingAlert && (
+            <View style={[styles.cardAlert, { backgroundColor: 'rgba(255, 215, 64, 0.1)', borderColor: 'rgba(255, 215, 64, 0.3)' }]}>
+              <MaterialCommunityIcons name="lock-open-outline" size={16} color={theme.warning} />
+              <Text style={styles.cardAlertText}>
+                Fatura fecha em {closingAlert.days === 0 ? 'HOJE' : closingAlert.days === 1 ? '1 dia' : `${closingAlert.days} dias`}
+              </Text>
+            </View>
+          )}
+          {dueAlert && (
+            <View style={[styles.cardAlert, { backgroundColor: 'rgba(255, 69, 58, 0.1)', borderColor: 'rgba(255, 69, 58, 0.3)' }]}>
+              <Ionicons name="warning-outline" size={16} color={theme.danger} />
+              <Text style={styles.cardAlertText}>
+                Fatura vence em {dueAlert.days === 0 ? 'HOJE' : dueAlert.days === 1 ? '1 dia' : `${dueAlert.days} dias`}
+              </Text>
+            </View>
+          )}
         </View>
-      </LinearGradient>
-    </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
 export default function CardsScreen() {
   const insets = useSafeAreaInsets();
-  const { cards, deleteCard } = useCardStore();
+  const { cards, deleteCard, isInvoicePaid, paidInvoices } = useCardStore();
+  const transactions = useTransactionStore(state => state.transactions);
 
   const handleEdit = (id: string) => {
     router.push({ pathname: '/new-card', params: { id } });
@@ -94,6 +126,51 @@ export default function CardsScreen() {
       { text: "Excluir", style: "destructive", onPress: () => deleteCard(id) }
     ]);
   };
+
+  const cardAlerts = useMemo(() => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    const alerts: Record<string, { closing?: { days: number }, due?: { days: number } }> = {};
+
+    cards.forEach(card => {
+      // Valor da fatura (transações de crédito do cartão no mês atual)
+      const invoiceValue = transactions
+        .filter(t => t.cardId === card.id && t.paymentMethod === 'credit')
+        .reduce((acc, t) => acc + t.value, 0);
+
+      if (invoiceValue === 0) return;
+
+      alerts[card.id] = {};
+
+      // 1. Alerta de Fechamento
+      const closingDate = new Date(currentYear, currentMonth, card.closing_day);
+      if (closingDate < today && today.getDate() > card.closing_day) {
+        closingDate.setMonth(closingDate.getMonth() + 1);
+      }
+      const diffDaysClosing = Math.ceil((closingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDaysClosing === 0) {
+        alerts[card.id].closing = { days: diffDaysClosing };
+      }
+
+      // 2. Alerta de Vencimento
+      if (!isInvoicePaid(card.id, currentMonth, currentYear)) {
+        const dueDate = new Date(currentYear, currentMonth, card.due_day);
+        if (dueDate < today && today.getDate() > card.due_day) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        const diffDaysDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDaysDue >= 0 && diffDaysDue <= 3) {
+          alerts[card.id].due = { days: diffDaysDue };
+        }
+      }
+    });
+
+    return alerts;
+  }, [cards, transactions, isInvoicePaid, paidInvoices]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -133,6 +210,8 @@ export default function CardsScreen() {
             card={item}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            closingAlert={cardAlerts[item.id]?.closing}
+            dueAlert={cardAlerts[item.id]?.due}
           />
         )}
       />
@@ -181,15 +260,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 20,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    backgroundColor: theme.surface,
   },
   cardGradient: {
     height: 180,
     padding: 20,
+    borderRadius: 20,
   },
   cardContent: {
     flex: 1,
@@ -268,6 +344,24 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(0,0,0,0.2)',
     borderRadius: 10,
+  },
+  // Alerts
+  alertsContainer: {
+    padding: 12,
+    gap: 8,
+  },
+  cardAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  cardAlertText: {
+    color: theme.text,
+    fontSize: 12,
+    fontWeight: '500',
   },
   // Empty State
   emptyContainer: {

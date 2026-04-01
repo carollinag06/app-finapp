@@ -165,11 +165,11 @@ export default function WelcomeScreen() {
         <SafeAreaView style={styles.content}>
           {/* --- ILUSTRAÇÃO / LOGO --- */}
           <Animated.View
-            entering={FadeInUp.delay(200).duration(1000)}
+            entering={FadeInUp.delay(200).duration(900)}
             style={styles.headerContainer}
           >
             <Animated.View
-              entering={ZoomIn.delay(400).duration(800)}
+              entering={ZoomIn.delay(400).duration(720)}
               style={styles.logoWrapper}
             >
               <Image
@@ -178,13 +178,13 @@ export default function WelcomeScreen() {
               />
             </Animated.View>
             <Animated.Text
-              entering={FadeIn.delay(800).duration(800)}
+              entering={FadeIn.delay(800).duration(720)}
               style={styles.welcomeTitle}
             >
               Bem-vindo ao FinançasApp
             </Animated.Text>
             <Animated.Text
-              entering={FadeIn.delay(1000).duration(800)}
+              entering={FadeIn.delay(1000).duration(720)}
               style={styles.welcomeSubtitle}
             >
               Sua jornada para a liberdade financeira começa aqui.
@@ -193,7 +193,7 @@ export default function WelcomeScreen() {
 
           {/* --- BOTÕES DE AÇÃO --- */}
           <Animated.View
-            entering={FadeInDown.delay(1200).duration(1000)}
+            entering={FadeInDown.delay(1200).duration(900)}
             style={styles.actionsContainer}
           >
             {/* Botão Google */}
