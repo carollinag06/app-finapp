@@ -13,6 +13,9 @@ export interface Transaction {
   date: string;
   paymentMethod?: 'credit' | 'debit' | 'pix';
   recurrence?: 'fixed' | 'variable' | 'installment';
+  installmentsCount?: number;
+  installmentNumber?: number;
+  installmentGroupId?: string;
   cardId?: string;
   user_id?: string;
 }
@@ -22,8 +25,10 @@ interface TransactionStore {
   transactions: Transaction[];
   fetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransactions: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  deleteTransactionsByGroupId: (groupId: string) => Promise<void>;
   setTransactions: (transactions: Transaction[]) => void;
   reset: () => void;
 }
@@ -88,6 +93,33 @@ export const useTransactionStore = create<TransactionStore>()(
         }
       },
 
+      addTransactions: async (newTransactions) => {
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) throw new Error("Usuário não autenticado");
+
+          const transactionsWithUserId = newTransactions.map(t => ({ ...t, user_id: user.id }));
+
+          const { data, error } = await supabase
+            .from('transactions')
+            .insert(transactionsWithUserId)
+            .select();
+
+          if (error) {
+            console.error("Erro Supabase addTransactions:", error);
+            throw new Error(`Erro ao salvar transações: ${error.message}`);
+          }
+          if (data) {
+            set((state) => ({
+              transactions: [...data, ...state.transactions]
+            }));
+          }
+        } catch (err) {
+          console.error("Erro catch addTransactions:", err);
+          throw err;
+        }
+      },
+
       updateTransaction: async (id, updatedTransaction) => {
         try {
           const { error } = await supabase
@@ -126,6 +158,27 @@ export const useTransactionStore = create<TransactionStore>()(
           }));
         } catch (err) {
           console.error("Erro catch deleteTransaction:", err);
+          throw err;
+        }
+      },
+
+      deleteTransactionsByGroupId: async (groupId) => {
+        try {
+          const { error } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('installmentGroupId', groupId);
+
+          if (error) {
+            console.error("Erro Supabase deleteTransactionsByGroupId:", error);
+            throw new Error(`Erro ao excluir parcelas: ${error.message}`);
+          }
+
+          set((state) => ({
+            transactions: state.transactions.filter((t) => t.installmentGroupId !== groupId)
+          }));
+        } catch (err) {
+          console.error("Erro catch deleteTransactionsByGroupId:", err);
           throw err;
         }
       },

@@ -1,6 +1,6 @@
-import { Stack, router } from 'expo-router';
+import { Stack, router, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -29,6 +29,9 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in 
 }
 
 export default function RootLayout() {
+  const rootNavigationState = useRootNavigationState();
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
   const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
   const fetchBudgets = useBudgetStore((state) => state.fetchBudgets);
   const fetchCards = useCardStore((state) => state.fetchCards);
@@ -36,12 +39,11 @@ export default function RootLayout() {
   const fetchInvestments = useInvestmentStore((state) => state.fetchInvestments);
 
   useEffect(() => {
-    console.log('--- Auth Listener Inicializado ---');
-
     // Escuta mudanças no estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`Evento de Auth: ${event}`, session ? 'Sessão Ativa' : 'Sem Sessão');
-
+      setIsAuthReady(true);
+      
       if (session) {
         // Se houver sessão, carrega os dados da nuvem
         fetchTransactions();
@@ -49,28 +51,6 @@ export default function RootLayout() {
         fetchCards();
         fetchCategories();
         fetchInvestments();
-
-        // Se estivermos em uma tela de autenticação, redireciona para o app principal
-        // Isso resolve o problema do app "surdo" após o login social
-        router.replace('/(tabs)');
-      } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-        // Se não houver sessão inicial ou for logout, vai para welcome
-        if (!session) router.replace('/welcome');
-      }
-    });
-
-    // Verificação inicial manual para garantir
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        console.log('Sessão recuperada no getSession');
-        fetchTransactions();
-        fetchBudgets();
-        fetchCards();
-        fetchInvestments();
-        router.replace('/(tabs)');
-      } else {
-        console.log('Nenhuma sessão encontrada no getSession');
-        router.replace('/welcome');
       }
     });
 
@@ -79,11 +59,30 @@ export default function RootLayout() {
     };
   }, [fetchTransactions, fetchBudgets, fetchCards, fetchCategories, fetchInvestments]);
 
+  // Efeito separado para lidar com a navegação inicial após o Root estar montado
+  useEffect(() => {
+    if (!rootNavigationState?.key || !isAuthReady) return;
+
+    const handleInitialNavigation = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        console.log('Navegando para (tabs) - Sessão ativa');
+        router.replace('/(tabs)');
+      } else {
+        console.log('Navegando para welcome - Nenhuma sessão');
+        router.replace('/welcome');
+      }
+    };
+
+    handleInitialNavigation();
+  }, [rootNavigationState?.key, isAuthReady]);
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0F0F0F' } }}>
           <Stack.Screen name="welcome" />
           <Stack.Screen name="login" />
           <Stack.Screen name="cadastro" />

@@ -8,12 +8,13 @@ export type InvestmentType = 'Renda fixa' | 'Ações' | 'Fundos imobiliários' |
 export interface Investment {
   id: string;
   name: string;
-  type: InvestmentType;
-  investedAmount: number;
-  currentAmount: number;
+  type: string;
+  amount: number;
+  current_amount?: number;
   date: string;
-  cdiPercentage?: number; // Porcentagem do CDI (ex: 100)
+  cdi_percentage?: number; // Porcentagem do CDI (ex: 100)
   user_id?: string;
+  created_at?: string;
 }
 
 interface InvestmentStore {

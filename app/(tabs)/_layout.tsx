@@ -1,22 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { Tabs, router } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import React, { useRef } from 'react';
 import {
   Animated,
   Platform,
   StyleSheet,
   TouchableOpacity,
-  useWindowDimensions
+  useWindowDimensions,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const theme = {
-  bg: '#121212',
-  surface: '#1E1E1E',
+  bg: '#0F0F0F',
+  surface: '#1A1A1F',
   primary: '#8A2BE2',
   textMuted: '#A0A0A0',
-  border: '#333333',
+  border: '#2C2C2E',
 };
 
 // --- COMPONENTE DO BOTÃO CENTRAL ---
@@ -83,7 +84,10 @@ export default function TabLayout() {
           paddingBottom: bottomPadding,
           paddingTop: 10,
           borderTopWidth: 1,
-          elevation: 10,
+          borderBottomWidth: 0,
+          borderLeftWidth: 0,
+          borderRightWidth: 0,
+          elevation: 0, // Removido elevation para evitar linhas fantasmas no Android
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.2,
@@ -104,6 +108,10 @@ export default function TabLayout() {
           fontWeight: '500',
           marginBottom: 4,
         },
+        // Correção definitiva para as linhas brancas sem erro de tipagem
+        tabBarBackground: () => (
+          <View style={{ flex: 1, backgroundColor: theme.surface }} />
+        ),
       }}
     >
       <Tabs.Screen

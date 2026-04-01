@@ -195,7 +195,7 @@ export default function NewCardScreen() {
 
           {/* Card Preview Visual Avançado */}
           <LinearGradient
-            colors={selectedColor.grad as any}
+            colors={selectedColor.grad as [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cardPreview}
@@ -209,7 +209,7 @@ export default function NewCardScreen() {
                   <View style={styles.chipLine} />
                 </View>
                 <MaterialCommunityIcons
-                  name={cardBrands.find(b => b.name === selectedBrand)?.icon as any || 'credit-card-outline'}
+                  name={(cardBrands.find(b => b.name === selectedBrand)?.icon as keyof typeof MaterialCommunityIcons.glyphMap) || 'credit-card-outline'}
                   size={40}
                   color="#FFF"
                   style={{ opacity: 0.9 }}

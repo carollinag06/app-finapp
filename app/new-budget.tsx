@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBudgetStore } from '../store/budgetStore';
+import { useCategoryStore } from '../store/categoryStore';
 
 const theme = {
   bg: '#0F0F12',
@@ -28,27 +29,33 @@ const theme = {
   danger: '#FF453A',
 };
 
-const expenseCategories = [
-  { name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A' },
-  { name: 'Transporte', icon: 'car-outline', color: '#64D2FF' },
-  { name: 'Moradia', icon: 'home-outline', color: '#FF9F0A' },
-  { name: 'Saúde', icon: 'heart-outline', color: '#32D74B' },
-  { name: 'Lazer', icon: 'game-controller-outline', color: '#BF5AF2' },
-  { name: 'Educação', icon: 'book-outline', color: '#5E5CE6' },
-  { name: 'Outros', icon: 'ellipsis-horizontal-outline', color: '#8E8E93' },
-];
-
 export default function NewBudgetScreen() {
   const params = useLocalSearchParams();
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
-  const [category, setCategory] = useState(expenseCategories[0].name);
+  const { categories, fetchCategories } = useCategoryStore();
+  const expenseCategories = useMemo(() => categories.filter(c => c.type === 'expense'), [categories]);
+
+  const [category, setCategory] = useState('');
   const [amount, setAmount] = useState(''); // Raw numbers string
-  const [icon, setIcon] = useState(expenseCategories[0].icon);
-  const [color, setColor] = useState(expenseCategories[0].color);
+  const [icon, setIcon] = useState('wallet-outline');
+  const [color, setColor] = useState(theme.primary);
   const [loading, setLoading] = useState(false);
+
+  // Inicializar com a primeira categoria se disponível
+  useEffect(() => {
+    if (!category && expenseCategories.length > 0) {
+      setCategory(expenseCategories[0].name);
+      setIcon(expenseCategories[0].icon);
+      setColor(expenseCategories[0].color);
+    }
+  }, [expenseCategories, category]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const budgets = useBudgetStore((state) => state.budgets);
   const addBudget = useBudgetStore((state) => state.addBudget);
@@ -198,7 +205,7 @@ export default function NewBudgetScreen() {
                     disabled={loading}
                   >
                     <Ionicons
-                      name={cat.icon as any}
+                      name={cat.icon as keyof typeof Ionicons.glyphMap}
                       size={24}
                       color={isSelected ? cat.color : theme.textMuted}
                     />

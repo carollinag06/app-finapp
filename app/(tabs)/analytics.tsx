@@ -163,7 +163,7 @@ const RankingBar = ({ label, value, percentage, color, icon }: RankingBarProps) 
   <View style={styles.rankingItem}>
     <View style={styles.rankingIconContainer}>
       <View style={[styles.categoryIconBg, { backgroundColor: `${color}20` }]}>
-        <Ionicons name={(icon as any) || 'ellipsis-horizontal-outline'} size={18} color={color} />
+        <Ionicons name={(icon as keyof typeof Ionicons.glyphMap) || 'ellipsis-horizontal-outline'} size={18} color={color} />
       </View>
     </View>
     <View style={{ flex: 1 }}>

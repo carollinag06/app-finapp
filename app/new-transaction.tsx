@@ -102,14 +102,17 @@ export default function NewTransactionScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix'>('debit');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [recurrence, setRecurrence] = useState<'fixed' | 'variable' | 'installment'>('variable');
+  const [installmentsCount, setInstallmentsCount] = useState('2');
   const [loading, setLoading] = useState(false);
 
   // --- OTIMIZAÇÃO ZUSTAND ---
   // Seletores específicos evitam re-renders quando outras partes do store mudam
   const transactions = useTransactionStore((state) => state.transactions);
   const addTransaction = useTransactionStore((state) => state.addTransaction);
+  const addTransactions = useTransactionStore((state) => state.addTransactions);
   const updateTransaction = useTransactionStore((state) => state.updateTransaction);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
+  const deleteTransactionsByGroupId = useTransactionStore((state) => state.deleteTransactionsByGroupId);
 
   const cards = useCardStore((state) => state.cards);
 
@@ -233,6 +236,47 @@ export default function NewTransactionScreen() {
     try {
       if (editId) {
         await updateTransaction(editId, transactionData);
+      } else if (recurrence === 'installment' && isExpense) {
+        const numInstallments = parseInt(installmentsCount);
+        if (isNaN(numInstallments) || numInstallments <= 1) {
+          Alert.alert("Aviso", "Por favor, digite um número de parcelas válido (mínimo 2).");
+          return;
+        }
+
+        const installmentValue = Number((numericValue / numInstallments).toFixed(2));
+        const transactionsToSave = [];
+        const baseDate = new Date(date);
+        const originalDay = baseDate.getDate();
+        const installmentGroupId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+        for (let i = 0; i < numInstallments; i++) {
+          const installmentDate = new Date(baseDate);
+          installmentDate.setMonth(baseDate.getMonth() + i);
+
+          // Se o dia mudou (ex: 31 de Março -> 1 de Maio ao adicionar 1 mês), 
+          // voltamos para o último dia do mês correto (30 de Abril)
+          if (installmentDate.getDate() !== originalDay && i > 0) {
+            installmentDate.setDate(0);
+          }
+
+          // Ajuste na última parcela para compensar arredondamentos
+          let currentInstallmentValue = installmentValue;
+          if (i === numInstallments - 1) {
+            const totalSoFar = installmentValue * (numInstallments - 1);
+            currentInstallmentValue = Number((numericValue - totalSoFar).toFixed(2));
+          }
+
+          transactionsToSave.push({
+            ...transactionData,
+            value: currentInstallmentValue,
+            date: installmentDate.toISOString(),
+            description: `${finalDescription} (${i + 1}/${numInstallments})`,
+            installmentNumber: i + 1,
+            installmentsCount: numInstallments,
+            installmentGroupId,
+          });
+        }
+        await addTransactions(transactionsToSave);
       } else {
         await addTransaction(transactionData);
       }
@@ -245,31 +289,75 @@ export default function NewTransactionScreen() {
     } finally {
       setLoading(false);
     }
-  }, [value, description, transactionType, selectedCategory, date, paymentMethod, selectedCardId, recurrence, currentCategories, editId, updateTransaction, addTransaction]);
+  }, [value, description, transactionType, selectedCategory, date, paymentMethod, selectedCardId, recurrence, currentCategories, editId, updateTransaction, addTransaction, addTransactions, installmentsCount]);
 
   const handleDelete = useCallback(() => {
-    Alert.alert(
-      "Excluir Transação",
-      "Deseja realmente excluir esta transação?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Excluir", style: "destructive", onPress: async () => {
-            setLoading(true);
-            try {
-              await deleteTransaction(editId);
-              router.back();
-            } catch (err) {
-              const errorMessage = err instanceof Error ? err.message : "Erro ao excluir transação";
-              Alert.alert("Erro", errorMessage);
-            } finally {
-              setLoading(false);
+    const t = transactions.find(t => t.id === editId);
+    const isInstallment = t?.recurrence === 'installment' && t?.installmentGroupId;
+
+    if (isInstallment) {
+      Alert.alert(
+        "Excluir Parcelas",
+        "Esta transação faz parte de um parcelamento. O que deseja excluir?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Apenas esta",
+            onPress: async () => {
+              setLoading(true);
+              try {
+                await deleteTransaction(editId);
+                router.back();
+              } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : "Erro ao excluir transação";
+                Alert.alert("Erro", errorMessage);
+              } finally {
+                setLoading(false);
+              }
+            }
+          },
+          {
+            text: "Todas as parcelas",
+            style: "destructive",
+            onPress: async () => {
+              setLoading(true);
+              try {
+                await deleteTransactionsByGroupId(t.installmentGroupId!);
+                router.back();
+              } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : "Erro ao excluir parcelas";
+                Alert.alert("Erro", errorMessage);
+              } finally {
+                setLoading(false);
+              }
             }
           }
-        }
-      ]
-    );
-  }, [editId, deleteTransaction]);
+        ]
+      );
+    } else {
+      Alert.alert(
+        "Excluir Transação",
+        "Deseja realmente excluir esta transação?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Excluir", style: "destructive", onPress: async () => {
+              setLoading(true);
+              try {
+                await deleteTransaction(editId);
+                router.back();
+              } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : "Erro ao excluir transação";
+                Alert.alert("Erro", errorMessage);
+              } finally {
+                setLoading(false);
+              }
+            }
+          }
+        ]
+      );
+    }
+  }, [editId, deleteTransaction, deleteTransactionsByGroupId, transactions]);
 
   const handleTypeChange = useCallback((type: 'expense' | 'income') => {
     setTransactionType(type);
@@ -416,7 +504,10 @@ export default function NewTransactionScreen() {
                     <PillButton
                       label="Débito / Pix"
                       isActive={paymentMethod === 'debit'}
-                      onPress={() => setPaymentMethod('debit')}
+                      onPress={() => {
+                        setPaymentMethod('debit');
+                        if (recurrence === 'installment') setRecurrence('variable');
+                      }}
                     />
                     <PillButton
                       label="Cartão de Crédito"
@@ -498,10 +589,30 @@ export default function NewTransactionScreen() {
                       isActive={recurrence === 'fixed'}
                       onPress={() => setRecurrence('fixed')}
                     />
-                    <PillButton
-                      label="Parcelada"
-                      isActive={recurrence === 'installment'}
-                      onPress={() => setRecurrence('installment')}
+                    {paymentMethod === 'credit' && (
+                      <PillButton
+                        label="Parcelada"
+                        isActive={recurrence === 'installment'}
+                        onPress={() => setRecurrence('installment')}
+                      />
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Parcelas (Apenas se for parcelado) */}
+              {isExpense && recurrence === 'installment' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Número de Parcelas</Text>
+                  <View style={styles.inputContainer}>
+                    <MaterialCommunityIcons name="numeric" size={20} color={theme.textMuted} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="number-pad"
+                      placeholder="Ex: 12"
+                      placeholderTextColor={theme.textMuted}
+                      value={installmentsCount}
+                      onChangeText={setInstallmentsCount}
                     />
                   </View>
                 </View>
@@ -509,10 +620,14 @@ export default function NewTransactionScreen() {
 
               {/* Categorias (Lista Horizontal) */}
               <View style={styles.inputGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <View style={styles.sectionHeader}>
                   <Text style={styles.label}>Categoria</Text>
-                  <TouchableOpacity onPress={() => router.push('/categories')}>
-                    <Text style={{ color: theme.primary, fontSize: 12, fontWeight: 'bold' }}>Gerenciar</Text>
+                  <TouchableOpacity
+                    style={styles.addCategoryLink}
+                    onPress={() => router.push('/categories')}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color={theme.primary} />
+                    <Text style={styles.addCategoryLinkText}>Nova Categoria</Text>
                   </TouchableOpacity>
                 </View>
                 {currentCategories.length > 0 ? (
@@ -705,7 +820,22 @@ const styles = StyleSheet.create({
     color: theme.text,
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addCategoryLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addCategoryLinkText: {
+    color: theme.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',

@@ -39,12 +39,12 @@ const typeColors: Record<string, string> = {
   'Outros': theme.textMuted,
 };
 
-const typeIcons: Record<string, any> = {
-  'Renda fixa': 'account-balance',
+const typeIcons: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  'Renda fixa': 'bank',
   'Ações': 'trending-up',
-  'Fundos imobiliários': 'domain',
-  'Criptomoedas': 'currency-bitcoin',
-  'Outros': 'more-horiz',
+  'Fundos imobiliários': 'office-building',
+  'Criptomoedas': 'currency-btc',
+  'Outros': 'dots-horizontal',
 };
 
 export default function InvestmentsScreen() {
@@ -56,18 +56,34 @@ export default function InvestmentsScreen() {
   }, [fetchInvestments]);
 
   const stats = useMemo(() => {
-    const totalInvested = investments.reduce((acc, i) => acc + i.investedAmount, 0);
-    const currentTotal = investments.reduce((acc, i) => acc + i.currentAmount, 0);
+    const totalInvested = investments.reduce((acc, i) => acc + i.amount, 0);
+    const currentTotal = investments.reduce((acc, i) => acc + (i.current_amount || i.amount), 0);
     const profit = currentTotal - totalInvested;
     const profitability = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
 
-    return { totalInvested, currentTotal, profit, profitability };
+    // Cálculo mais preciso usando taxa CDI anual de 11.25% (SELIC atual estimada)
+    // Baseado em 252 dias úteis por ano (padrão de mercado financeiro no Brasil)
+    const ANNUAL_CDI = 0.1125;
+    const DAILY_RATE = Math.pow(1 + ANNUAL_CDI, 1 / 252) - 1;
+
+    const dailyYield = investments.reduce((acc, inv) => {
+      if (inv.cdi_percentage) {
+        const saldoParaCalculo = inv.current_amount || inv.amount;
+        const cdiFactor = inv.cdi_percentage / 100;
+        const rendimentoDiario = saldoParaCalculo * DAILY_RATE * cdiFactor;
+        return acc + rendimentoDiario;
+      }
+      return acc;
+    }, 0);
+
+    return { totalInvested, currentTotal, profit, profitability, dailyYield };
   }, [investments]);
 
   const distributionData = useMemo(() => {
     const counts: Record<string, number> = {};
     investments.forEach(i => {
-      counts[i.type] = (counts[i.type] || 0) + i.currentAmount;
+      const typeStr = i.type || 'Outros';
+      counts[typeStr] = (counts[typeStr] || 0) + (i.current_amount || i.amount);
     });
 
     return Object.entries(counts).map(([name, value]) => ({
@@ -80,30 +96,31 @@ export default function InvestmentsScreen() {
   }, [investments]);
 
   const renderInvestmentItem = ({ item }: { item: Investment }) => {
-    const profit = item.currentAmount - item.investedAmount;
+    const currentAmount = item.current_amount || item.amount;
+    const profit = currentAmount - item.amount;
     const isProfit = profit >= 0;
 
     return (
       <TouchableOpacity
         style={styles.investmentCard}
-        onPress={() => router.push({ pathname: '/investment-details' as any, params: { id: item.id } })}
+        onPress={() => router.push({ pathname: '/investment-details', params: { id: item.id } })}
       >
-        <View style={[styles.iconBg, { backgroundColor: `${typeColors[item.type]}20` }]}>
-          <MaterialCommunityIcons name={typeIcons[item.type]} size={24} color={typeColors[item.type]} />
+        <View style={[styles.iconBg, { backgroundColor: `${typeColors[item.type || 'Outros']}20` }]}>
+          <MaterialCommunityIcons name={typeIcons[item.type || 'Outros']} size={24} color={typeColors[item.type || 'Outros']} />
         </View>
         <View style={styles.investmentInfo}>
           <Text style={styles.investmentName}>{item.name}</Text>
           <View style={styles.typeRow}>
             <Text style={styles.investmentType}>{item.type}</Text>
-            {item.type === 'Renda fixa' && item.cdiPercentage && (
+            {item.type === 'Renda fixa' && item.cdi_percentage && (
               <View style={styles.cdiBadge}>
-                <Text style={styles.cdiBadgeText}>{item.cdiPercentage}% CDI</Text>
+                <Text style={styles.cdiBadgeText}>{item.cdi_percentage}% CDI</Text>
               </View>
             )}
           </View>
         </View>
         <View style={styles.investmentValues}>
-          <Text style={styles.currentValue}>R$ {item.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+          <Text style={styles.currentValue}>R$ {currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
           <Text style={[styles.profitText, { color: isProfit ? theme.success : theme.danger }]}>
             {isProfit ? '+' : ''}R$ {profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </Text>
@@ -135,6 +152,15 @@ export default function InvestmentsScreen() {
         <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Patrimônio Total</Text>
           <Text style={styles.summaryValue}>R$ {stats.currentTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+
+          {stats.dailyYield > 0 && (
+            <View style={styles.dailyYieldContainer}>
+              <MaterialCommunityIcons name="lightning-bolt" size={14} color="#FFFFFF" />
+              <Text style={styles.dailyYieldText}>
+                Rendendo aprox. <Text style={{ fontWeight: 'bold' }}>R$ {stats.dailyYield.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text> por dia
+              </Text>
+            </View>
+          )}
 
           <View style={styles.summaryStatsRow}>
             <View style={styles.statItem}>
@@ -262,7 +288,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  dailyYieldContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  dailyYieldText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    opacity: 0.9,
   },
   summaryStatsRow: {
     flexDirection: 'row',

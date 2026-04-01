@@ -17,8 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../../src/lib/supabase';
-import { useBudgetStore } from '../../store/budgetStore';
+import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { CreditCard, useCardStore } from '../../store/cardStore';
+import { useInvestmentStore } from '../../store/investmentStore';
 import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- TIPAGEM ---
@@ -268,7 +269,7 @@ const TransacoesRecentes = ({ transactions }: { transactions: Transaction[] }) =
             >
               <View style={[styles.transactionIconBg, { backgroundColor: isIncome ? 'rgba(0, 230, 118, 0.1)' : 'rgba(255, 82, 82, 0.1)' }]}>
                 <Ionicons
-                  name={icon}
+                  name={icon as keyof typeof Ionicons.glyphMap}
                   size={20}
                   color={isIncome ? theme.success : theme.danger}
                 />
@@ -392,6 +393,7 @@ export default function Dashboard() {
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
   const { cards, markInvoiceAsPaid, isInvoicePaid } = useCardStore();
+  const { investments, fetchInvestments } = useInvestmentStore();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -399,7 +401,8 @@ export default function Dashboard() {
       setUser(user);
     };
     fetchUser();
-  }, []);
+    fetchInvestments();
+  }, [fetchInvestments]);
 
   // Alertas de Fatura
   const invoiceAlerts = useMemo(() => {
@@ -411,7 +414,7 @@ export default function Dashboard() {
       // Valor da fatura (transações de crédito do cartão no mês atual)
       const invoiceValue = transactions
         .filter((t: Transaction) => t.cardId === card.id && t.paymentMethod === 'credit')
-        .reduce((acc, t) => acc + t.value, 0);
+        .reduce((acc: number, t: Transaction) => acc + t.value, 0);
 
       if (invoiceValue === 0) return null;
 
@@ -451,6 +454,28 @@ export default function Dashboard() {
     markInvoiceAsPaid(cardId, today.getMonth(), today.getFullYear());
   };
 
+  // Investimentos reais
+  const totalInvestido = useMemo(() =>
+    investments.reduce((acc, inv) => acc + (inv.current_amount || inv.amount), 0)
+    , [investments]);
+
+  const rendimentoEstimado = useMemo(() => {
+    // Cálculo mais preciso usando taxa CDI anual de 11.25% (SELIC atual estimada)
+    // Baseado em 252 dias úteis por ano (padrão de mercado financeiro no Brasil)
+    const ANNUAL_CDI = 0.1125;
+    const DAILY_RATE = Math.pow(1 + ANNUAL_CDI, 1 / 252) - 1;
+
+    return investments.reduce((acc, inv) => {
+      if (inv.cdi_percentage) {
+        const saldoParaCalculo = inv.current_amount || inv.amount;
+        const cdiFactor = inv.cdi_percentage / 100;
+        const rendimentoDiario = saldoParaCalculo * DAILY_RATE * cdiFactor;
+        return acc + rendimentoDiario;
+      }
+      return acc;
+    }, 0);
+  }, [investments]);
+
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
     return transactions.filter((t: Transaction) => {
@@ -463,22 +488,22 @@ export default function Dashboard() {
   }, [transactions, currentMonth, currentYear]);
 
   const receitasTotais = useMemo(() =>
-    monthlyTransactions.filter((t: Transaction) => t.type === 'income').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'income').reduce((acc: number, t: Transaction) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const despesasTotais = useMemo(() =>
-    monthlyTransactions.filter((t: Transaction) => t.type === 'expense').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'expense').reduce((acc: number, t: Transaction) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const valorPendente = useMemo(() =>
-    monthlyTransactions.filter((t: Transaction) => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc, t) => acc + t.value, 0)
+    monthlyTransactions.filter((t: Transaction) => t.type === 'expense' && t.paymentMethod === 'credit').reduce((acc: number, t: Transaction) => acc + t.value, 0)
     , [monthlyTransactions]);
 
   const totalOrcado = useMemo(() =>
-    budgets.reduce((acc, b) => acc + b.amount, 0)
+    budgets.reduce((acc: number, b: BudgetGoal) => acc + b.amount, 0)
     , [budgets]);
 
-  const saldoAtual = receitasTotais - (despesasTotais - valorPendente); // Saldo disponível (descontando o que já foi pago)
+  const saldoAtual = receitasTotais - despesasTotais; // Saldo líquido (Receitas - Todas as Despesas, incluindo crédito)
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -555,19 +580,46 @@ export default function Dashboard() {
             <TransacoesRecentes transactions={monthlyTransactions} />
           </Animated.View>
 
-          {/* Card de Investimento Mock */}
+          {/* Card de Investimento Real */}
           <Animated.View entering={FadeInDown.delay(1200).duration(800)} style={styles.section}>
-            <Text style={styles.sectionTitle}>Investimentos</Text>
-            <TouchableOpacity style={styles.investCard}>
-              <View style={styles.investIconBg}>
-                <MaterialCommunityIcons name="chart-areaspline" size={24} color={theme.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 16 }}>
-                <Text style={styles.investTitle}>Rendimento CDI</Text>
-                <Text style={styles.investSubtitle}>Seu dinheiro rendeu R$ 12,40 hoje</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={theme.border} />
-            </TouchableOpacity>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Investimentos</Text>
+              <TouchableOpacity onPress={() => router.push('/investimentos')}>
+                <Text style={styles.seeAllText}>Ver tudo</Text>
+              </TouchableOpacity>
+            </View>
+
+            {investments.length > 0 ? (
+              <TouchableOpacity
+                style={styles.investCard}
+                onPress={() => router.push('/investimentos')}
+              >
+                <View style={styles.investIconBg}>
+                  <MaterialCommunityIcons name="chart-areaspline" size={24} color={theme.primary} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 16 }}>
+                  <Text style={styles.investTitle}>
+                    {mostrarSaldo
+                      ? `R$ ${totalInvestido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                      : 'R$ •••••'}
+                  </Text>
+                  <Text style={styles.investSubtitle}>
+                    {rendimentoEstimado > 0
+                      ? `Rendendo aprox. R$ ${rendimentoEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / dia`
+                      : 'Acompanhe seus rendimentos'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={theme.border} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.emptyState}
+                onPress={() => router.push('/new-investment')}
+              >
+                <MaterialCommunityIcons name="cash-plus" size={40} color={theme.border} />
+                <Text style={styles.emptyStateText}>Nenhum investimento cadastrado.</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
 
         </ScrollView>

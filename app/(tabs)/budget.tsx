@@ -49,7 +49,7 @@ const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
     <View style={styles.card}>
       <View style={styles.cardTop}>
         <View style={[styles.iconBg, { backgroundColor: `${goal.color}20` }]}>
-          <Ionicons name={(goal.icon as any) || 'wallet-outline'} size={22} color={goal.color} />
+          <Ionicons name={(goal.icon as keyof typeof Ionicons.glyphMap) || 'wallet-outline'} size={22} color={goal.color} />
         </View>
         <View style={styles.cardTitleContainer}>
           <Text style={styles.cardCategory}>{goal.category}</Text>

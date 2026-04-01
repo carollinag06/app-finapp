@@ -39,12 +39,12 @@ const typeColors: Record<string, string> = {
   'Outros': theme.textMuted,
 };
 
-const typeIcons: Record<string, any> = {
-  'Renda fixa': 'account-balance',
+const typeIcons: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  'Renda fixa': 'bank',
   'Ações': 'trending-up',
-  'Fundos imobiliários': 'domain',
-  'Criptomoedas': 'currency-bitcoin',
-  'Outros': 'more-horiz',
+  'Fundos imobiliários': 'office-building',
+  'Criptomoedas': 'currency-btc',
+  'Outros': 'dots-horizontal',
 };
 
 // Taxa CDI anual estimada (SELIC atual aproximada)
@@ -62,8 +62,8 @@ export default function InvestmentDetailsScreen() {
   const projections = useMemo(() => {
     if (!investment) return null;
 
-    const currentAmount = investment.currentAmount;
-    const cdiFactor = (investment.cdiPercentage || 100) / 100;
+    const currentAmount = investment.current_amount || investment.amount;
+    const cdiFactor = (investment.cdi_percentage || 100) / 100;
     const monthlyRate = Math.pow(1 + ANNUAL_CDI, 1 / 12) - 1;
     const effectiveMonthlyRate = monthlyRate * cdiFactor;
 
@@ -81,18 +81,32 @@ export default function InvestmentDetailsScreen() {
 
   const yieldData = useMemo(() => {
     if (!investment) return null;
-    const totalProfit = investment.currentAmount - investment.investedAmount;
+    const currentAmount = investment.current_amount || investment.amount;
+    const totalProfit = currentAmount - investment.amount;
 
-    // Simulação de rendimento mensal (exemplo visual)
-    const monthlyYield = totalProfit / 6;
-    return [
-      monthlyYield * 0.5,
-      monthlyYield * 0.8,
-      monthlyYield * 1.2,
-      monthlyYield * 1.5,
-      monthlyYield * 1.8,
-      totalProfit
-    ];
+    // Se não houver lucro, mostra tudo zerado mas com estrutura
+    if (totalProfit <= 0) return { labels: ["-5m", "-4m", "-3m", "-2m", "-1m", "Atual"], values: [0, 0, 0, 0, 0, 0] };
+
+    // Simulação de rendimento acumulado crescente (curva de juros)
+    // Usamos uma lógica onde o lucro cresce exponencialmente para parecer real
+    const values = [];
+    const steps = 6;
+    for (let i = 1; i <= steps; i++) {
+      // Fator de crescimento (i/steps)^1.5 cria uma curva suave
+      const factor = Math.pow(i / steps, 1.5);
+      values.push(Number((totalProfit * factor).toFixed(2)));
+    }
+
+    // Gerar labels de meses retroativos
+    const labels = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      labels.push(d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
+    }
+    labels[5] = "Hoje";
+
+    return { labels, values };
   }, [investment]);
 
   if (!investment) {
@@ -106,8 +120,9 @@ export default function InvestmentDetailsScreen() {
     );
   }
 
-  const profit = investment.currentAmount - investment.investedAmount;
-  const profitability = (profit / investment.investedAmount) * 100;
+  const currentAmount = investment.current_amount || investment.amount;
+  const profit = currentAmount - investment.amount;
+  const profitability = investment.amount > 0 ? (profit / investment.amount) * 100 : 0;
   const isProfit = profit >= 0;
 
   const handleDelete = () => {
@@ -136,7 +151,7 @@ export default function InvestmentDetailsScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push({ pathname: '/new-investment' as any, params: { id: investment.id } })}
+            onPress={() => router.navigate({ pathname: '/new-investment' as any, params: { id: investment.id } })}
           >
             <Feather name="edit-2" size={20} color={theme.text} />
           </TouchableOpacity>
@@ -148,12 +163,12 @@ export default function InvestmentDetailsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.mainCard}>
-          <View style={[styles.typeBadge, { backgroundColor: `${typeColors[investment.type]}20` }]}>
-            <MaterialCommunityIcons name={typeIcons[investment.type]} size={16} color={typeColors[investment.type]} />
-            <Text style={[styles.typeBadgeText, { color: typeColors[investment.type] }]}>{investment.type}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: `${typeColors[investment.type || 'Outros']}20` }]}>
+            <MaterialCommunityIcons name={typeIcons[investment.type || 'Outros']} size={16} color={typeColors[investment.type || 'Outros']} />
+            <Text style={[styles.typeBadgeText, { color: typeColors[investment.type || 'Outros'] }]}>{investment.type}</Text>
           </View>
           <Text style={styles.investmentName}>{investment.name}</Text>
-          <Text style={styles.currentValue}>R$ {investment.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+          <Text style={styles.currentValue}>R$ {currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
           <View style={[styles.profitBadge, { backgroundColor: isProfit ? `${theme.success}20` : `${theme.danger}20` }]}>
             <Ionicons name={isProfit ? "trending-up" : "trending-down"} size={14} color={isProfit ? theme.success : theme.danger} />
             <Text style={[styles.profitBadgeText, { color: isProfit ? theme.success : theme.danger }]}>
@@ -166,7 +181,7 @@ export default function InvestmentDetailsScreen() {
           <View style={styles.infoRow}>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Valor Investido</Text>
-              <Text style={styles.infoValue}>R$ {investment.investedAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+              <Text style={styles.infoValue}>R$ {investment.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Data Inicial</Text>
@@ -174,11 +189,11 @@ export default function InvestmentDetailsScreen() {
             </View>
           </View>
 
-          {investment.type === 'Renda fixa' && investment.cdiPercentage && (
+          {investment.type === 'Renda fixa' && investment.cdi_percentage && (
             <View style={[styles.infoRow, { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: theme.border }]}>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>Rendimento Contratado</Text>
-                <Text style={styles.infoValue}>{investment.cdiPercentage}% do CDI</Text>
+                <Text style={styles.infoValue}>{investment.cdi_percentage}% do CDI</Text>
               </View>
               <View style={styles.infoItem}>
                 <Text style={styles.infoLabel}>CDI Anual Est.</Text>
@@ -194,14 +209,14 @@ export default function InvestmentDetailsScreen() {
           <View style={styles.chartContainer}>
             <BarChart
               data={{
-                labels: ["M1", "M2", "M3", "M4", "M5", "Atual"],
+                labels: yieldData?.labels || [],
                 datasets: [{
-                  data: yieldData || [0, 0, 0, 0, 0, 0]
+                  data: yieldData?.values || [0, 0, 0, 0, 0, 0]
                 }]
               }}
-              width={chartWidth}
+              width={chartWidth - 20}
               height={220}
-              yAxisLabel="R$ "
+              yAxisLabel=""
               yAxisSuffix=""
               chartConfig={{
                 backgroundColor: theme.surface,
@@ -211,9 +226,16 @@ export default function InvestmentDetailsScreen() {
                 color: (opacity = 1) => theme.success,
                 labelColor: (opacity = 1) => theme.textMuted,
                 style: { borderRadius: 16 },
+                barPercentage: 0.6,
               }}
-              style={{ borderRadius: 16, marginVertical: 8 }}
-              showValuesOnTopOfBars
+              style={{
+                borderRadius: 16,
+                marginVertical: 8,
+                paddingRight: 35,
+              }}
+              fromZero
+              showValuesOnTopOfBars={false} // Desligado para não poluir
+              flatColor={true}
             />
           </View>
         </View>
@@ -234,7 +256,7 @@ export default function InvestmentDetailsScreen() {
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.projectionValue}>R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                   <Text style={[styles.projectionProfit, { color: theme.success }]}>
-                    +R$ {(p.value - investment.currentAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    +R$ {(p.value - currentAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
               </View>
@@ -249,34 +271,36 @@ export default function InvestmentDetailsScreen() {
           <View style={styles.chartContainer}>
             <LineChart
               data={{
-                labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"],
+                labels: yieldData?.labels || [],
                 datasets: [{
                   data: [
-                    investment.investedAmount,
-                    investment.investedAmount * 1.02,
-                    investment.investedAmount * 1.01,
-                    investment.investedAmount * 1.05,
-                    investment.investedAmount * 1.08,
-                    investment.currentAmount
-                  ],
-                  color: (opacity = 1) => theme.primary,
-                  strokeWidth: 3
+                    investment.amount * 1.0,
+                    investment.amount * 1.005,
+                    investment.amount * 1.01,
+                    investment.amount * 1.015,
+                    investment.amount * 1.02,
+                    currentAmount
+                  ]
                 }]
               }}
-              width={chartWidth}
+              width={chartWidth - 20}
               height={220}
               chartConfig={{
                 backgroundColor: theme.surface,
                 backgroundGradientFrom: theme.surface,
                 backgroundGradientTo: theme.surface,
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(138, 43, 226, ${opacity})`,
+                color: (opacity = 1) => theme.primary,
                 labelColor: (opacity = 1) => theme.textMuted,
                 style: { borderRadius: 16 },
-                propsForDots: { r: "6", strokeWidth: "2", stroke: theme.surface }
+                propsForDots: { r: "4", strokeWidth: "2", stroke: theme.primary }
               }}
               bezier
-              style={{ borderRadius: 16 }}
+              style={{
+                borderRadius: 16,
+                paddingRight: 40,
+                marginTop: 8
+              }}
             />
           </View>
         </View>

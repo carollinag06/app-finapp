@@ -114,7 +114,7 @@ export default function CategoriesScreen() {
     <View style={styles.categoryItem}>
       <View style={styles.categoryInfo}>
         <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
-          <Ionicons name={item.icon as any} size={24} color={item.color} />
+          <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={24} color={item.color} />
         </View>
         <View>
           <Text style={styles.categoryName}>{item.name}</Text>
@@ -198,7 +198,7 @@ export default function CategoriesScreen() {
                     style={[styles.selectorItem, newIcon === icon && styles.selectorItemActive]}
                     onPress={() => setNewIcon(icon)}
                   >
-                    <Ionicons name={icon as any} size={24} color={newIcon === icon ? theme.primary : theme.textMuted} />
+                    <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={24} color={newIcon === icon ? theme.primary : theme.textMuted} />
                   </TouchableOpacity>
                 ))}
               </ScrollView>

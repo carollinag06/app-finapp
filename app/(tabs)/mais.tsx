@@ -53,9 +53,9 @@ const Header = () => (
 const MenuItem = ({ icon, title, subtitle, onPress, color = theme.text, iconType = 'ionicons' }: MenuItemProps) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress}>
     <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
-      {iconType === 'ionicons' && <Ionicons name={icon as any} size={22} color={color} />}
-      {iconType === 'feather' && <Feather name={icon as any} size={22} color={color} />}
-      {iconType === 'material' && <MaterialCommunityIcons name={icon as any} size={22} color={color} />}
+      {iconType === 'ionicons' && <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={22} color={color} />}
+      {iconType === 'feather' && <Feather name={icon as keyof typeof Feather.glyphMap} size={22} color={color} />}
+      {iconType === 'material' && <MaterialCommunityIcons name={icon as keyof typeof MaterialCommunityIcons.glyphMap} size={22} color={color} />}
     </View>
     <View style={styles.menuContent}>
       <Text style={[styles.menuTitle, { color }]}>{title}</Text>

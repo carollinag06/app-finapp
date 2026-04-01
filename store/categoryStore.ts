@@ -11,19 +11,18 @@ export interface Category {
   user_id?: string;
 }
 
-const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
-  { name: 'Alimentação', icon: 'restaurant', color: '#FF9500', type: 'expense', is_default: true },
-  { name: 'Transporte', icon: 'bus', color: '#007AFF', type: 'expense', is_default: true },
-  { name: 'Moradia', icon: 'home', color: '#FF3B30', type: 'expense', is_default: true },
-  { name: 'Saúde', icon: 'medkit', color: '#4CD964', type: 'expense', is_default: true },
-  { name: 'Lazer', icon: 'game-controller', color: '#5856D6', type: 'expense', is_default: true },
-  { name: 'Educação', icon: 'school', color: '#A2845E', type: 'expense', is_default: true },
-  { name: 'Compras', icon: 'cart', color: '#FF2D55', type: 'expense', is_default: true },
-  { name: 'Salário', icon: 'cash', color: '#34C759', type: 'income', is_default: true },
-  { name: 'Freelance', icon: 'laptop', color: '#5AC8FA', type: 'income', is_default: true },
-  { name: 'Presente', icon: 'gift', color: '#FFCC00', type: 'income', is_default: true },
-  { name: 'Outros', icon: 'ellipsis-horizontal', color: '#8E8E93', type: 'expense', is_default: true },
-  { name: 'Outros', icon: 'ellipsis-horizontal', color: '#8E8E93', type: 'income', is_default: true },
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: '1', name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A', type: 'expense', is_default: true },
+  { id: '2', name: 'Transporte', icon: 'car-outline', color: '#64D2FF', type: 'expense', is_default: true },
+  { id: '3', name: 'Moradia', icon: 'home-outline', color: '#FF9F0A', type: 'expense', is_default: true },
+  { id: '4', name: 'Saúde', icon: 'heart-outline', color: '#32D74B', type: 'expense', is_default: true },
+  { id: '5', name: 'Lazer', icon: 'game-controller-outline', color: '#BF5AF2', type: 'expense', is_default: true },
+  { id: '10', name: 'Educação', icon: 'book-outline', color: '#5E5CE6', type: 'expense', is_default: true },
+  { id: '11', name: 'Outros', icon: 'ellipsis-horizontal-outline', color: '#8E8E93', type: 'expense', is_default: true },
+  { id: '6', name: 'Salário', icon: 'cash-outline', color: '#30D158', type: 'income', is_default: true },
+  { id: '7', name: 'Freelance', icon: 'laptop-outline', color: '#FF375F', type: 'income', is_default: true },
+  { id: '8', name: 'Investimento', icon: 'trending-up-outline', color: '#0A84FF', type: 'income', is_default: true },
+  { id: '9', name: 'Presente', icon: 'gift-outline', color: '#FFD60A', type: 'income', is_default: true },
 ];
 
 interface CategoryState {
@@ -36,51 +35,57 @@ interface CategoryState {
 }
 
 export const useCategoryStore = create<CategoryState>((set) => ({
-  categories: [],
+  categories: DEFAULT_CATEGORIES,
 
   fetchCategories: async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) return;
+      if (authError || !user) {
+        // Se não houver usuário, garantimos que pelo menos as padrões apareçam
+        set({ categories: DEFAULT_CATEGORIES });
+        return;
+      }
 
       // 1. Tenta buscar categorias do usuário ou globais
-      let { data, error } = await supabase
+      let query = supabase
         .from('categories')
-        .select('*')
+        .select('*');
+
+      // Tenta usar a coluna is_default se ela existir, senão busca apenas por user_id
+      let { data, error } = await query
         .or(`user_id.eq.${user.id},is_default.eq.true`)
         .order('name');
 
       if (error) {
-        console.error("Erro ao carregar categorias:", error);
-        throw new Error(`Erro ao carregar categorias: ${error.message}`);
-      }
-
-      // 2. Se não houver NENHUMA categoria (nem padrão nem do usuário), vamos criar as padrões para este usuário
-      if (data && data.length === 0) {
-        const categoriesToInsert = DEFAULT_CATEGORIES.map(cat => ({
-          ...cat,
-          user_id: user.id,
-          is_default: true // Mantemos como true para serem as categorias padrão "oficiais" do usuário
-        }));
-
-        const { data: seededData, error: seedError } = await supabase
+        console.warn("Erro ao carregar categorias com is_default, tentando apenas user_id:", error.message);
+        // Fallback: busca apenas categorias do usuário
+        const { data: userData, error: userError } = await supabase
           .from('categories')
-          .insert(categoriesToInsert)
-          .select();
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name');
 
-        if (seedError) {
-          console.error("Erro ao criar categorias padrão:", seedError);
-        } else if (seededData) {
-          data = seededData;
+        if (userError) {
+          console.error("Erro crítico ao carregar categorias do usuário:", userError);
+          // Se falhou tudo, mantém as padrões
+          set({ categories: DEFAULT_CATEGORIES });
+          return;
         }
+        data = userData;
       }
 
-      if (data) {
-        set({ categories: data });
+      // 2. Se houver categorias no banco, mesclamos com as padrões (evitando duplicatas por nome)
+      if (data && data.length > 0) {
+        const dbCategoryNames = new Set(data.map(c => c.name));
+        const missingDefaults = DEFAULT_CATEGORIES.filter(c => !dbCategoryNames.has(c.name));
+        set({ categories: [...data, ...missingDefaults] });
+      } else {
+        // Se não houver nada no banco, usa as padrões
+        set({ categories: DEFAULT_CATEGORIES });
       }
     } catch (err) {
-      console.error("Erro no fetchCategories:", err);
-      throw err;
+      console.error("Erro catch fetchCategories:", err);
+      set({ categories: DEFAULT_CATEGORIES });
     }
   },
 

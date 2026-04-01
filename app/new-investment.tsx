@@ -40,12 +40,12 @@ const investmentTypes: InvestmentType[] = [
   'Outros'
 ];
 
-const typeIcons: Record<string, any> = {
-  'Renda fixa': 'account-balance',
+const typeIcons: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  'Renda fixa': 'bank',
   'Ações': 'trending-up',
-  'Fundos imobiliários': 'domain',
-  'Criptomoedas': 'currency-bitcoin',
-  'Outros': 'more-horiz',
+  'Fundos imobiliários': 'office-building',
+  'Criptomoedas': 'currency-btc',
+  'Outros': 'dots-horizontal',
 };
 
 export default function NewInvestmentScreen() {
@@ -70,10 +70,10 @@ export default function NewInvestmentScreen() {
       const inv = investments.find(i => i.id === editId);
       if (inv) {
         setName(inv.name);
-        setType(inv.type);
-        setInvestedAmount((inv.investedAmount * 100).toFixed(0));
-        setCurrentAmount((inv.currentAmount * 100).toFixed(0));
-        setCdiPercentage(inv.cdiPercentage ? inv.cdiPercentage.toString() : '');
+        setType(inv.type as InvestmentType);
+        setInvestedAmount((inv.amount * 100).toFixed(0));
+        setCurrentAmount(inv.current_amount ? (inv.current_amount * 100).toFixed(0) : '');
+        setCdiPercentage(inv.cdi_percentage ? inv.cdi_percentage.toString() : '');
         setDate(inv.date);
       }
     }
@@ -115,10 +115,10 @@ export default function NewInvestmentScreen() {
     const data = {
       name: name.trim(),
       type,
-      investedAmount: numericInvested,
-      currentAmount: numericCurrent,
+      amount: numericInvested,
+      current_amount: numericCurrent,
       date,
-      cdiPercentage: type === 'Renda fixa' && cdiPercentage ? Number(cdiPercentage) : undefined,
+      cdi_percentage: type === 'Renda fixa' && cdiPercentage ? Number(cdiPercentage) : undefined,
     };
 
     setLoading(true);

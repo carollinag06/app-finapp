@@ -197,7 +197,7 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
   );
 };
 
-const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id: string) => void }) => {
+const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (item: Transaction) => void }) => {
   const icon = categoryIcons[item.category] || 'pricetag';
   const isIncome = item.type === 'income';
 
@@ -209,14 +209,7 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (id:
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Excluir Lançamento",
-      `Deseja realmente excluir "${item.description}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive", onPress: () => onDelete(item.id) }
-      ]
-    );
+    onDelete(item);
   };
 
   return (
@@ -267,6 +260,7 @@ export default function TransactionsScreen() {
 
   const transactions = useTransactionStore((state) => state.transactions);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
+  const deleteTransactionsByGroupId = useTransactionStore((state) => state.deleteTransactionsByGroupId);
   const categories = useCategoryStore((state) => state.categories);
 
   const hasActiveFilters = filterType !== 'all' || filterCategory !== null || filterPaymentMethod !== 'all';
@@ -289,6 +283,36 @@ export default function TransactionsScreen() {
       return isMonthMatch && isSearchMatch && isTypeMatch && isCategoryMatch && isPaymentMatch;
     });
   }, [transactions, currentMonth, currentYear, searchText, filterType, filterCategory, filterPaymentMethod]);
+
+  const handleDelete = (item: Transaction) => {
+    if (item.recurrence === 'installment' && item.installmentGroupId) {
+      Alert.alert(
+        "Excluir Parcelas",
+        "Esta transação faz parte de um parcelamento. O que deseja excluir?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Apenas esta",
+            onPress: () => deleteTransaction(item.id)
+          },
+          {
+            text: "Todas as parcelas",
+            style: "destructive",
+            onPress: () => deleteTransactionsByGroupId(item.installmentGroupId!)
+          }
+        ]
+      );
+    } else {
+      Alert.alert(
+        "Excluir Lançamento",
+        `Deseja realmente excluir "${item.description}"?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Excluir", style: "destructive", onPress: () => deleteTransaction(item.id) }
+        ]
+      );
+    }
+  };
 
   const resetFilters = () => {
     setFilterType('all');
@@ -395,7 +419,7 @@ export default function TransactionsScreen() {
 
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(600 + index * 50).duration(800)}>
-              <TransactionItem item={item} onDelete={deleteTransaction} />
+              <TransactionItem item={item} onDelete={handleDelete} />
             </Animated.View>
           )}
 
