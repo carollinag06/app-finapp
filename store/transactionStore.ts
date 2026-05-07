@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
-import { supabase } from '../src/lib/supabase';
 
 // 1. Definimos o formato da nossa Transação
 export interface Transaction {
@@ -45,149 +45,83 @@ export const useTransactionStore = create<TransactionStore>()(
 
       fetchTransactions: async () => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) return;
-
-          const { data, error } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('date', { ascending: false });
-
-          if (error) {
-            console.error("Erro Supabase fetchTransactions:", error);
-            throw new Error(`Erro ao carregar transações: ${error.message}`);
-          }
-          if (data) {
-            set({ transactions: data });
-          }
-        } catch (err) {
-          console.error("Erro catch fetchTransactions:", err);
-          throw err;
+          const { data } = await api.get('/transactions');
+          set({ transactions: data });
+        } catch (error) {
+          console.error('Erro ao buscar transações:', error);
         }
       },
 
       addTransaction: async (newTransaction) => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) throw new Error("Usuário não autenticado");
-
-          const { data, error } = await supabase
-            .from('transactions')
-            .insert([{ ...newTransaction, user_id: user.id }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error("Erro Supabase addTransaction:", error);
-            throw new Error(`Erro ao salvar transação: ${error.message}`);
-          }
-          if (data) {
-            set((state) => ({
-              transactions: [data, ...state.transactions]
-            }));
-          }
-        } catch (err) {
-          console.error("Erro catch addTransaction:", err);
-          throw err;
+          const { data } = await api.post('/transactions', newTransaction);
+          set((state) => ({
+            transactions: [data, ...state.transactions]
+          }));
+        } catch (error) {
+          console.error('Erro ao adicionar transação:', error);
+          throw error;
         }
       },
 
       addTransactions: async (newTransactions) => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) throw new Error("Usuário não autenticado");
-
-          const transactionsWithUserId = newTransactions.map(t => ({
-            ...t,
-            user_id: user.id
+          // No backend genérico não temos bulk create exposto diretamente via /transactions
+          // Poderíamos adicionar ou fazer um loop (menos eficiente, mas resolve por agora)
+          const promises = newTransactions.map(t => api.post('/transactions', t));
+          const results = await Promise.all(promises);
+          const addedTransactions = results.map(r => r.data);
+          
+          set((state) => ({
+            transactions: [...addedTransactions, ...state.transactions]
           }));
-
-          const { data, error } = await supabase
-            .from('transactions')
-            .insert(transactionsWithUserId)
-            .select();
-
-          if (error) {
-            console.error("Erro Supabase addTransactions:", error);
-            throw new Error(`Erro ao salvar transações: ${error.message}`);
-          }
-
-          if (data) {
-            set((state) => ({
-              transactions: [...data, ...state.transactions]
-            }));
-          }
-        } catch (err) {
-          console.error("Erro catch addTransactions:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao adicionar múltiplas transações:', error);
+          throw error;
         }
       },
 
       updateTransaction: async (id, updatedTransaction) => {
         try {
-          const { error } = await supabase
-            .from('transactions')
-            .update(updatedTransaction)
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase updateTransaction:", error);
-            throw new Error(`Erro ao atualizar transação: ${error.message}`);
-          }
-
+          const { data } = await api.put(`/transactions/${id}`, updatedTransaction);
           set((state) => ({
-            transactions: state.transactions.map((t) => t.id === id ? { ...t, ...updatedTransaction } : t)
+            transactions: state.transactions.map((t) => t.id === id ? data : t)
           }));
-        } catch (err) {
-          console.error("Erro catch updateTransaction:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao atualizar transação:', error);
+          throw error;
         }
       },
 
       deleteTransaction: async (id) => {
         try {
-          const { error } = await supabase
-            .from('transactions')
-            .delete()
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase deleteTransaction:", error);
-            throw new Error(`Erro ao excluir transação: ${error.message}`);
-          }
-
+          await api.delete(`/transactions/${id}`);
           set((state) => ({
             transactions: state.transactions.filter((t) => t.id !== id)
           }));
-        } catch (err) {
-          console.error("Erro catch deleteTransaction:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao excluir transação:', error);
+          throw error;
         }
       },
 
       deleteTransactionsByGroupId: async (groupId) => {
         try {
-          const { error } = await supabase
-            .from('transactions')
-            .delete()
-            .eq('installmentGroupId', groupId);
-
-          if (error) {
-            console.error("Erro Supabase deleteTransactionsByGroupId:", error);
-            throw new Error(`Erro ao excluir parcelas: ${error.message}`);
-          }
-
+          // No backend genérico não temos delete by group id
+          // Vamos buscar as transações desse grupo e deletar uma a uma
+          const transactionsToDelete = get().transactions.filter(t => t.installmentGroupId === groupId);
+          await Promise.all(transactionsToDelete.map(t => api.delete(`/transactions/${t.id}`)));
+          
           set((state) => ({
             transactions: state.transactions.filter((t) => t.installmentGroupId !== groupId)
           }));
-        } catch (err) {
-          console.error("Erro catch deleteTransactionsByGroupId:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao excluir grupo de transações:', error);
+          throw error;
         }
       },
     }),
-    {
+    { 
       name: 'transaction-storage',
       storage: createJSONStorage(() => safeStorage),
     }

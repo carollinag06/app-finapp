@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { router, Tabs } from 'expo-router';
-import { useRef } from 'react';
+import React from 'react';
 import {
-  Animated,
   Platform,
   StyleSheet,
   TouchableOpacity,
@@ -23,38 +22,15 @@ const theme = {
 
 // --- COMPONENTE DO BOTÃO CENTRAL ---
 const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-
   return (
     <TouchableOpacity
       style={styles.customButtonWrapper}
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      activeOpacity={1}
+      activeOpacity={0.8}
     >
-      <Animated.View
-        style={[
-          styles.customButton,
-          { transform: [{ scale: scaleAnim }] },
-        ]}
-      >
+      <View style={styles.customButton}>
         <Ionicons name="add" size={32} color="#FFFFFF" />
-      </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 };

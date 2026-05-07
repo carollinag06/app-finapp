@@ -13,9 +13,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../src/lib/supabase';
+import { useAuthStore } from '../store/authStore';
 
 // --- TEMA ---
 const theme = {
@@ -39,6 +38,7 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const insets = useSafeAreaInsets();
+  const { register } = useAuthStore();
 
   // Refs para navegação entre inputs
   const emailRef = useRef<TextInput>(null);
@@ -70,45 +70,13 @@ export default function RegisterScreen() {
 
     setLoading(true);
 
-    const { error, data } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password,
-      options: {
-        data: {
-          full_name: name.trim(),
-        },
-      },
-    });
-
-    if (error) {
+    try {
+      await register(name.trim(), email.trim(), password);
+      // O RootLayout redirecionará para /(tabs) automaticamente
+    } catch (error: any) {
       console.error("Erro no Cadastro:", error);
-      let errorMessage = "Não foi possível realizar o cadastro no momento. Tente novamente mais tarde.";
-
-      const errorMsg = error.message.toLowerCase();
-
-      if (errorMsg.includes("user already registered") || errorMsg.includes("unique constraint")) {
-        errorMessage = "Este e-mail já está sendo usado por outra conta. Tente fazer login.";
-      } else if (errorMsg.includes("password should be at least")) {
-        errorMessage = "A senha é muito curta. Ela deve ter pelo menos 6 caracteres para sua segurança.";
-      } else if (errorMsg.includes("rate limit exceeded")) {
-        errorMessage = "Muitas tentativas seguidas para criar conta. Por favor, aguarde alguns minutos.";
-      } else if (errorMsg.includes("invalid email")) {
-        errorMessage = "O e-mail digitado não parece ser válido. Verifique o formato.";
-      } else if (errorMsg.includes("weak_password")) {
-        errorMessage = "A senha digitada é muito fraca. Tente misturar letras e números.";
-      }
-
-      Alert.alert("Erro no Cadastro", errorMessage);
+      Alert.alert("Erro no Cadastro", "Não foi possível realizar o cadastro no momento.");
       setLoading(false);
-    } else {
-      // Se precisar de confirmação de e-mail, avise o usuário
-      if (data.session) {
-        // O RootLayout irá detectar a sessão e redirecionar automaticamente para /(tabs)
-      } else {
-        Alert.alert("Sucesso", "Cadastro realizado com sucesso! Por favor, verifique seu e-mail para confirmar a conta e poder acessar o app.", [
-          { text: "OK", onPress: () => router.replace('/login') }
-        ]);
-      }
     }
   }, [name, email, password, confirmPassword]);
 
@@ -124,10 +92,7 @@ export default function RegisterScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* --- HEADER --- */}
-            <Animated.View
-              entering={FadeInUp.duration(720)}
-              style={styles.headerContainer}
-            >
+            <View style={styles.headerContainer}>
               <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
               </TouchableOpacity>
@@ -136,13 +101,10 @@ export default function RegisterScreen() {
                 <Text style={styles.title}>Criar Conta</Text>
                 <Text style={styles.subtitle}>Comece a organizar sua vida financeira agora mesmo.</Text>
               </View>
-            </Animated.View>
+            </View>
 
             {/* --- FORMULÁRIO --- */}
-            <Animated.View
-              entering={FadeInDown.delay(200).duration(720)}
-              style={styles.formContainer}
-            >
+            <View style={styles.formContainer}>
 
               {/* Input de Nome */}
               <View style={styles.inputGroup}>
@@ -255,10 +217,10 @@ export default function RegisterScreen() {
                 <Text style={styles.registerButtonText}>Criar minha conta</Text>
               )}
               </TouchableOpacity>
-            </Animated.View>
+            </View>
 
             {/* --- RODAPÉ / LOGIN --- */}
-            <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.footerContainer}>
+            <View style={styles.footerContainer}>
               <Text style={styles.footerText}>
                 Já tem uma conta?{' '}
                 <Text
@@ -268,7 +230,7 @@ export default function RegisterScreen() {
                   Entrar
                 </Text>
               </Text>
-            </Animated.View>
+            </View>
 
             <View style={{ height: 40 }} />
           </ScrollView>

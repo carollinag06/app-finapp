@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
+import { useAuthStore } from '../../store/authStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useCardStore } from '../../store/cardStore';
 import { useCategoryStore } from '../../store/categoryStore';
@@ -71,15 +71,12 @@ export default function MoreScreen() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  const { user: authUser, logout } = useAuthStore();
   const transactions = useTransactionStore(state => state.transactions);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, []);
+    setUser(authUser as User | null);
+  }, [authUser]);
 
   const handleLogout = async () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
@@ -88,9 +85,7 @@ export default function MoreScreen() {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          await supabase.auth.signOut();
-          // Não precisamos de resetar os stores ou router.replace aqui, 
-          // o onAuthStateChange no _layout cuidará de limpar os dados e redirecionar
+          await logout();
         }
       }
     ]);

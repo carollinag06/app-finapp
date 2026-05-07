@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
-import { supabase } from '../src/lib/supabase';
 
 export interface Category {
   id: string;
@@ -38,128 +38,62 @@ interface CategoryState {
 
 export const useCategoryStore = create<CategoryState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       categories: DEFAULT_CATEGORIES,
 
       reset: () => set({ categories: DEFAULT_CATEGORIES }),
 
       fetchCategories: async () => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) {
-            // Se não houver usuário, garantimos que pelo menos as padrões apareçam
-            set({ categories: DEFAULT_CATEGORIES });
-            return;
-          }
-
-          // 1. Tenta buscar categorias do usuário ou globais
-          let query = supabase
-            .from('categories')
-            .select('*');
-
-          // Tenta usar a coluna is_default se ela existir, senão busca apenas por user_id
-          let { data, error } = await query
-            .or(`user_id.eq.${user.id},is_default.eq.true`)
-            .order('name');
-
-          if (error) {
-            console.warn("Erro ao carregar categorias com is_default, tentando apenas user_id:", error.message);
-            // Fallback: busca apenas categorias do usuário
-            const { data: userData, error: userError } = await supabase
-              .from('categories')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('name');
-
-            if (userError) {
-              console.error("Erro crítico ao carregar categorias do usuário:", userError);
-              // Se falhou tudo, mantém as padrões
-              set({ categories: DEFAULT_CATEGORIES });
-              return;
-            }
-            data = userData;
-          }
-
-          // 2. Se houver categorias no banco, mesclamos com as padrões (evitando duplicatas por nome)
-          if (data && data.length > 0) {
-            const dbCategoryNames = new Set(data.map(c => c.name));
-            const missingDefaults = DEFAULT_CATEGORIES.filter(c => !dbCategoryNames.has(c.name));
-            set({ categories: [...data, ...missingDefaults] });
-          } else {
-            // Se não houver nada no banco, usa as padrões
-            set({ categories: DEFAULT_CATEGORIES });
-          }
-        } catch (err) {
-          console.error("Erro catch fetchCategories:", err);
-          set({ categories: DEFAULT_CATEGORIES });
+          const { data } = await api.get('/categories');
+          // Mesclar padrões com remotas, evitando duplicatas
+          const customCategories = data.filter((c: Category) => !c.is_default);
+          set({ categories: [...DEFAULT_CATEGORIES, ...customCategories] });
+        } catch (error) {
+          console.error('Erro ao buscar categorias:', error);
         }
       },
 
       addCategory: async (newCategory) => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) throw new Error("Usuário não autenticado");
-
-          const { data, error } = await supabase
-            .from('categories')
-            .insert([{ ...newCategory, user_id: user.id, is_default: false }])
-            .select();
-
-          if (error) {
-            console.error("Erro Supabase addCategory:", error);
-            throw new Error(`Erro ao salvar categoria: ${error.message}`);
-          }
-
-          if (data && data[0]) {
-            set((state) => ({
-              categories: [...state.categories, data[0]]
-            }));
-          }
-        } catch (err) {
-          console.error("Erro catch addCategory:", err);
-          throw err;
+          const { data } = await api.post('/categories', { ...newCategory, is_default: false });
+          set((state) => ({
+            categories: [...state.categories, data]
+          }));
+        } catch (error) {
+          console.error('Erro ao adicionar categoria:', error);
+          throw error;
         }
       },
 
       updateCategory: async (id, updatedCategory) => {
         try {
-          const { error } = await supabase
-            .from('categories')
-            .update(updatedCategory)
-            .eq('id', id);
+          // Só permite atualizar se não for padrão ou se estiver no backend
+          const category = get().categories.find(c => c.id === id);
+          if (category?.is_default) return;
 
-          if (error) {
-            console.error("Erro Supabase updateCategory:", error);
-            throw new Error(`Erro ao atualizar categoria: ${error.message}`);
-          }
-
+          const { data } = await api.put(`/categories/${id}`, updatedCategory);
           set((state) => ({
-            categories: state.categories.map((c) => c.id === id ? { ...c, ...updatedCategory } : c)
+            categories: state.categories.map((c) => c.id === id ? data : c)
           }));
-        } catch (err) {
-          console.error("Erro catch updateCategory:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao atualizar categoria:', error);
+          throw error;
         }
       },
 
       deleteCategory: async (id) => {
         try {
-          const { error } = await supabase
-            .from('categories')
-            .delete()
-            .eq('id', id);
+          const category = get().categories.find(c => c.id === id);
+          if (category?.is_default) return;
 
-          if (error) {
-            console.error("Erro Supabase deleteCategory:", error);
-            throw new Error(`Erro ao excluir categoria: ${error.message}`);
-          }
-
+          await api.delete(`/categories/${id}`);
           set((state) => ({
             categories: state.categories.filter((c) => c.id !== id)
           }));
-        } catch (err) {
-          console.error("Erro catch deleteCategory:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao excluir categoria:', error);
+          throw error;
         }
       },
     }),

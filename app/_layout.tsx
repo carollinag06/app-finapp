@@ -1,10 +1,10 @@
 import { Stack, router, useRootNavigationState, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { supabase } from '../src/lib/supabase';
+import { useAuthStore } from '../store/authStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
 import { useCategoryStore } from '../store/categoryStore';
@@ -23,16 +23,16 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in 
         createScriptURL: (string: string) => string,
       });
     }
-  } catch {
+  } catch { statistics
     // Falha silenciosa se não puder criar política (ex: já existe ou restrição de CSP)
   }
 }
 
 export default function RootLayout() {
-  const rootNavigationState = useRootNavigationState();
   const segments = useSegments();
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [session, setSession] = useState<any>(null);
+  const rootNavigationState = useRootNavigationState();
+  
+  const { user, isAuthReady, checkAuth } = useAuthStore();
 
   const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
   const resetTransactions = useTransactionStore((state) => state.reset);
@@ -46,60 +46,39 @@ export default function RootLayout() {
   const resetInvestments = useInvestmentStore((state) => state.reset);
 
   useEffect(() => {
-    // Escuta mudanças no estado de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`Evento de Auth: ${event}`, session ? 'Sessão Ativa' : 'Sem Sessão');
-      setSession(session);
-      setIsAuthReady(true);
-      
-      if (session) {
-        // Se houver sessão, carrega os dados da nuvem
-        fetchTransactions();
-        fetchBudgets();
-        fetchCards();
-        fetchCategories();
-        fetchInvestments();
-      } else {
-        // Se não houver sessão (ex: SIGNED_OUT), limpa os stores
-        resetTransactions();
-        resetBudgets();
-        resetCards();
-        resetCategories();
-        resetInvestments();
-      }
-    });
+    checkAuth();
+  }, []);
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [fetchTransactions, resetTransactions, fetchBudgets, resetBudgets, fetchCards, resetCards, fetchCategories, resetCategories, fetchInvestments, resetInvestments]);
-
-  // Efeito centralizado para lidar com a navegação baseada no estado de autenticação
   useEffect(() => {
-    // Aguarda a navegação estar pronta e o estado de auth inicial ser carregado
-    if (!rootNavigationState?.key || !isAuthReady) return;
-
-    const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'cadastro';
-
-    if (session) {
-      // Se estiver logado e em uma tela de auth, redireciona para o app
-      if (inAuthGroup) {
-        console.log('Usuário logado em tela de auth - Redirecionando para (tabs)');
-        router.replace('/(tabs)');
-      }
+    if (user) {
+      // Sincronizar dados com o backend quando o usuário estiver logado
+      fetchTransactions();
+      fetchBudgets();
+      fetchCards();
+      fetchCategories();
+      fetchInvestments();
     } else {
-      // Se NÃO estiver logado e NÃO estiver em uma tela de auth, redireciona para welcome
-      if (!inAuthGroup) {
-        console.log('Usuário deslogado em tela protegida - Redirecionando para welcome');
-        
-        // Limpa o histórico para evitar o botão "voltar"
-        if (router.canGoBack()) {
-          router.dismissAll();
-        }
-        router.replace('/welcome');
-      }
+      resetTransactions();
+      resetBudgets();
+      resetCards();
+      resetCategories();
+      resetInvestments();
     }
-  }, [session, isAuthReady, segments, rootNavigationState?.key]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!isAuthReady || !rootNavigationState?.key) return;
+
+    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'new-transaction' || segments[0] === 'new-card' || segments[0] === 'profile' || segments[0] === 'categories' || segments[0] === 'new-investment' || segments[0] === 'investment-details';
+
+    if (!user && inAuthGroup) {
+      router.replace('/welcome');
+    } else if (user && !inAuthGroup) {
+      router.replace('/(tabs)');
+    }
+  }, [user, isAuthReady, segments, rootNavigationState?.key]);
+
+  if (!isAuthReady) return null;
 
   return (
     <SafeAreaProvider>
@@ -111,7 +90,7 @@ export default function RootLayout() {
           <Stack.Screen name="cadastro" />
 
           {/* Só permite acesso ao grupo (tabs) e modais se houver sessão */}
-          {session ? (
+          {user ? (
             <>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen

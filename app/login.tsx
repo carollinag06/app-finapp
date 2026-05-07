@@ -13,9 +13,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../src/lib/supabase';
+import { useAuthStore } from '../store/authStore';
 
 // --- TEMA ---
 const theme = {
@@ -37,6 +36,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const insets = useSafeAreaInsets();
+  const { login } = useAuthStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -45,35 +45,13 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password: password,
-    });
-
-    if (error) {
+    try {
+      await login(email.trim(), password);
+      // O RootLayout redirecionará para /(tabs) automaticamente
+    } catch (error: any) {
       console.error("Erro no Login:", error);
-      let errorMessage = "Ocorreu um erro ao tentar entrar. Verifique sua conexão.";
-
-      // Mapeamento de erros específicos do Supabase
-      const errorMsg = error.message.toLowerCase();
-
-      if (errorMsg.includes("invalid login credentials")) {
-        errorMessage = "E-mail ou senha incorretos. Verifique seus dados e tente novamente.";
-      } else if (errorMsg.includes("email not confirmed")) {
-        errorMessage = "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada para ativar a conta.";
-      } else if (errorMsg.includes("rate limit exceeded")) {
-        errorMessage = "Muitas tentativas seguidas. Por favor, aguarde alguns minutos.";
-      } else if (errorMsg.includes("user not found")) {
-        errorMessage = "Não encontramos uma conta com este e-mail. Verifique se digitou corretamente ou crie uma nova conta.";
-      } else if (errorMsg.includes("invalid email")) {
-        errorMessage = "O formato do e-mail digitado é inválido.";
-      }
-
-      Alert.alert('Erro no Login', errorMessage);
+      Alert.alert('Erro no Login', "Ocorreu um erro ao tentar entrar.");
       setLoading(false);
-    } else {
-      // O RootLayout irá detectar a sessão e redirecionar automaticamente para /(tabs)
-      // Não chamamos router.replace aqui para evitar conflitos de navegação inicial
     }
   };
 
@@ -101,23 +79,17 @@ export default function LoginScreen() {
           style={styles.keyboardView}
         >
           {/* --- HEADER / LOGO --- */}
-          <Animated.View
-            entering={FadeInUp.duration(720)}
-            style={styles.headerContainer}
-          >
+          <View style={styles.headerContainer}>
             <Image
               source={require('../assets/images/logo.jpeg')}
               style={styles.logoImage}
             />
             <Text style={styles.title}>Bem-vindo de volta!</Text>
             <Text style={styles.subtitle}>Faça login para gerenciar suas finanças</Text>
-          </Animated.View>
+          </View>
 
           {/* --- FORMULÁRIO --- */}
-          <Animated.View
-            entering={FadeInDown.delay(200).duration(720)}
-            style={styles.formContainer}
-          >
+          <View style={styles.formContainer}>
             {/* Input de E-mail */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>E-mail</Text>
@@ -182,15 +154,15 @@ export default function LoginScreen() {
                 <Text style={styles.loginButtonText}>Entrar</Text>
               )}
             </TouchableOpacity>
-          </Animated.View>
+          </View>
 
           {/* --- RODAPÉ / CADASTRAR --- */}
-          <Animated.View entering={FadeInDown.delay(400).duration(720)} style={styles.footerContainer}>
+          <View style={styles.footerContainer}>
             <Text style={styles.footerText}>Ainda não tem uma conta? </Text>
             <TouchableOpacity onPress={() => router.push('/cadastro')} disabled={loading}>
               <Text style={styles.registerText}>Cadastre-se</Text>
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         </KeyboardAvoidingView>
       </View>
     </View>

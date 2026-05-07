@@ -1,7 +1,7 @@
-import { safeStorage } from '@/lib/storage';
-import { supabase } from '@/lib/supabase';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import api from '../src/lib/api';
+import { safeStorage } from '../src/lib/storage';
 
 export interface BudgetGoal {
   id: string;
@@ -31,92 +31,46 @@ export const useBudgetStore = create<BudgetStore>()(
 
       fetchBudgets: async () => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) return;
-
-          const { data, error } = await supabase
-            .from('budgets')
-            .select('*')
-            .eq('user_id', user.id);
-
-          if (error) {
-            console.error("Erro Supabase fetchBudgets:", error);
-            throw new Error(`Erro ao carregar orçamentos: ${error.message}`);
-          }
-          if (data) {
-            set({ budgets: data });
-          }
-        } catch (err) {
-          console.error("Erro catch fetchBudgets:", err);
-          throw err;
+          const { data } = await api.get('/budgets');
+          set({ budgets: data });
+        } catch (error) {
+          console.error('Erro ao buscar orçamentos:', error);
         }
       },
 
       addBudget: async (newBudget) => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) throw new Error("Usuário não autenticado");
-
-          const { data, error } = await supabase
-            .from('budgets')
-            .insert([{ ...newBudget, user_id: user.id }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error("Erro Supabase addBudget:", error);
-            throw new Error(`Erro ao salvar orçamento: ${error.message}`);
-          }
-          if (data) {
-            set((state) => ({
-              budgets: [data, ...state.budgets]
-            }));
-          }
-        } catch (err) {
-          console.error("Erro catch addBudget:", err);
-          throw err;
+          const { data } = await api.post('/budgets', newBudget);
+          set((state) => ({
+            budgets: [data, ...state.budgets]
+          }));
+        } catch (error) {
+          console.error('Erro ao adicionar orçamento:', error);
+          throw error;
         }
       },
 
       updateBudget: async (id, updatedBudget) => {
         try {
-          const { error } = await supabase
-            .from('budgets')
-            .update(updatedBudget)
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase updateBudget:", error);
-            throw new Error(`Erro ao atualizar orçamento: ${error.message}`);
-          }
-
+          const { data } = await api.put(`/budgets/${id}`, updatedBudget);
           set((state) => ({
-            budgets: state.budgets.map((b) => b.id === id ? { ...b, ...updatedBudget } : b)
+            budgets: state.budgets.map((b) => b.id === id ? data : b)
           }));
-        } catch (err) {
-          console.error("Erro catch updateBudget:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao atualizar orçamento:', error);
+          throw error;
         }
       },
 
       deleteBudget: async (id) => {
         try {
-          const { error } = await supabase
-            .from('budgets')
-            .delete()
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase deleteBudget:", error);
-            throw new Error(`Erro ao excluir orçamento: ${error.message}`);
-          }
-
+          await api.delete(`/budgets/${id}`);
           set((state) => ({
             budgets: state.budgets.filter((b) => b.id !== id)
           }));
-        } catch (err) {
-          console.error("Erro catch deleteBudget:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao excluir orçamento:', error);
+          throw error;
         }
       },
     }),

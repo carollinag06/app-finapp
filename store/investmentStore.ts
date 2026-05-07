@@ -1,8 +1,8 @@
 import { differenceInBusinessDays, parseISO } from 'date-fns';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
-import { supabase } from '../src/lib/supabase';
 
 export type InvestmentType = 'Renda fixa' | 'Ações' | 'Fundos imobiliários' | 'Criptomoedas' | 'Outros';
 
@@ -62,100 +62,53 @@ interface InvestmentStore {
 
 export const useInvestmentStore = create<InvestmentStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       investments: [],
 
       reset: () => set({ investments: [] }),
 
       fetchInvestments: async () => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) return;
-
-          const { data, error } = await supabase
-            .from('investments')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('date', { ascending: false });
-
-          if (error) {
-            console.error("Erro Supabase fetchInvestments:", error);
-            return;
-          }
-          if (data) {
-            set({ investments: data });
-          }
-        } catch (err) {
-          console.error("Erro catch fetchInvestments:", err);
+          const { data } = await api.get('/investments');
+          set({ investments: data });
+        } catch (error) {
+          console.error('Erro ao buscar investimentos:', error);
         }
       },
 
       addInvestment: async (newInvestment) => {
         try {
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
-          if (authError || !user) throw new Error("Usuário não autenticado");
-
-          const { data, error } = await supabase
-            .from('investments')
-            .insert([{ ...newInvestment, user_id: user.id }])
-            .select()
-            .single();
-
-          if (error) {
-            console.error("Erro Supabase addInvestment:", error);
-            throw new Error(`Erro ao salvar investimento: ${error.message}`);
-          }
-
-          if (data) {
-            set((state) => ({
-              investments: [data, ...state.investments]
-            }));
-          }
-        } catch (err) {
-          console.error("Erro catch addInvestment:", err);
-          throw err;
+          const { data } = await api.post('/investments', newInvestment);
+          set((state) => ({
+            investments: [data, ...state.investments]
+          }));
+        } catch (error) {
+          console.error('Erro ao adicionar investimento:', error);
+          throw error;
         }
       },
 
       updateInvestment: async (id, updatedInvestment) => {
         try {
-          const { error } = await supabase
-            .from('investments')
-            .update(updatedInvestment)
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase updateInvestment:", error);
-            throw new Error(`Erro ao atualizar investimento: ${error.message}`);
-          }
-
+          const { data } = await api.put(`/investments/${id}`, updatedInvestment);
           set((state) => ({
-            investments: state.investments.map((i) => i.id === id ? { ...i, ...updatedInvestment } : i)
+            investments: state.investments.map((i) => i.id === id ? data : i)
           }));
-        } catch (err) {
-          console.error("Erro catch updateInvestment:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao atualizar investimento:', error);
+          throw error;
         }
       },
 
       deleteInvestment: async (id) => {
         try {
-          const { error } = await supabase
-            .from('investments')
-            .delete()
-            .eq('id', id);
-
-          if (error) {
-            console.error("Erro Supabase deleteInvestment:", error);
-            throw new Error(`Erro ao excluir investimento: ${error.message}`);
-          }
-
+          await api.delete(`/investments/${id}`);
           set((state) => ({
             investments: state.investments.filter((i) => i.id !== id)
           }));
-        } catch (err) {
-          console.error("Erro catch deleteInvestment:", err);
-          throw err;
+        } catch (error) {
+          console.error('Erro ao excluir investimento:', error);
+          throw error;
         }
       },
     }),

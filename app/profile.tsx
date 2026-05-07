@@ -1,29 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../src/lib/supabase';
+import { useAuthStore } from '../store/authStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
 import { useCategoryStore } from '../store/categoryStore';
 import { useTransactionStore } from '../store/transactionStore';
-
-import { User } from '@supabase/supabase-js';
-
 // --- TEMA ---
 const theme = {
   bg: '#0F0F12',
@@ -41,91 +37,25 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const { user, logout, updateProfile } = useAuthStore();
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const resetTransactions = useTransactionStore(state => state.reset);
   const resetBudgets = useBudgetStore(state => state.reset);
   const resetCards = useCardStore(state => state.reset);
-  const resetCategories = useCategoryStore((state) => state.resetCategories);
+  const resetCategories = useCategoryStore((state) => state.reset);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        setName(user.user_metadata?.full_name || '');
-        setEmail(user.email || '');
-        setAvatarUrl(user.user_metadata?.avatar_url || null);
-      }
-    };
-    fetchUser();
-  }, []);
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+    }
+  }, [user]);
 
   const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-      });
-
-      if (!result.canceled && result.assets[0].uri) {
-        uploadAvatar(result.assets[0].uri);
-      }
-    } catch {
-      Alert.alert("Erro", "Não foi possível selecionar a imagem.");
-    }
-  };
-
-  const uploadAvatar = async (uri: string) => {
-    if (!user) return;
-
-    try {
-      setUploading(true);
-
-      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      // No React Native, precisamos transformar a URI em um formato que o Supabase aceite
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, arrayBuffer, {
-          contentType: `image/${fileExt}`,
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      setAvatarUrl(publicUrl);
-
-      // Atualiza os metadados do usuário imediatamente com a nova foto
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl }
-      });
-
-      if (updateError) throw updateError;
-
-      Alert.alert("Sucesso", "Foto de perfil atualizada!");
-    } catch (error) {
-      console.error('Erro no upload:', error);
-      const errorMessage = error instanceof Error ? error.message : "Não foi possível enviar a foto. Verifique se o bucket 'avatars' existe no Supabase.";
-      Alert.alert("Erro no Upload", errorMessage);
-    } finally {
-      setUploading(false);
-    }
+    Alert.alert("Aviso", "Upload de avatar não disponível nesta versão.");
   };
 
   const handleUpdateProfile = useCallback(async () => {
@@ -135,21 +65,16 @@ export default function ProfileScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        full_name: name.trim(),
-        avatar_url: avatarUrl
-      }
-    });
-
-    if (error) {
-      console.error("Erro ao atualizar perfil:", error);
-      Alert.alert("Erro ao Atualizar", error.message || "Não foi possível atualizar suas informações no momento.");
-    } else {
+    try {
+      await updateProfile(name);
       Alert.alert("Sucesso", "Perfil atualizado com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao atualizar perfil:", error);
+      Alert.alert("Erro ao Atualizar", "Não foi possível atualizar suas informações no momento.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [name, avatarUrl]);
+  }, [name]);
 
   const handleLogout = async () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
@@ -159,16 +84,13 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-
+            await logout();
             resetTransactions();
             resetBudgets();
             resetCards();
             resetCategories();
-            // Não redirecionamos manualmente, o RootLayout cuidará disso enviando para welcome
-          } catch {
-            console.error("Erro ao fazer logout");
+          } catch (error) {
+            console.error("Erro ao fazer logout:", error);
             Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair. Tente novamente.");
           }
         }

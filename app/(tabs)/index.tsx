@@ -13,11 +13,9 @@ import {
   useWindowDimensions,
   View
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../../src/lib/supabase';
 import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { CreditCard, useCardStore } from '../../store/cardStore';
 import { calculateLiveBalance, useInvestmentStore } from '../../store/investmentStore';
@@ -77,10 +75,10 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
   currentYear: number,
   onPrev: () => void,
   onNext: () => void,
-  user: User | null
+  user: any
 }) => {
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Usuário';
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const firstName = user?.name?.split(' ')[0] || 'Usuário';
+  const avatarUrl = user?.avatar_url;
 
   return (
     <View style={styles.header}>
@@ -408,7 +406,7 @@ const InvoiceAlerts = ({ alerts, onMarkAsPaid }: { alerts: InvoiceAlert[], onMar
 // --- TELA PRINCIPAL ---
 
 export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useAuthStore();
   const [mostrarSaldo, setMostrarSaldo] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -420,11 +418,6 @@ export default function Dashboard() {
   const { investments, fetchInvestments } = useInvestmentStore();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    fetchUser();
     fetchInvestments();
   }, [fetchInvestments]);
 
@@ -585,7 +578,7 @@ export default function Dashboard() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(720)}>
+        <View>
           <Header
             currentMonth={currentMonth}
             currentYear={currentYear}
@@ -593,7 +586,7 @@ export default function Dashboard() {
             onNext={handleNextMonth}
             user={user}
           />
-        </Animated.View>
+        </View>
 
         <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}

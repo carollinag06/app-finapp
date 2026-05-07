@@ -10,12 +10,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInUp,
-    ZoomIn
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const theme = {
@@ -38,38 +32,23 @@ export default function WelcomeScreen() {
       >
         <SafeAreaView style={styles.content}>
           {/* --- ILUSTRAÇÃO / LOGO --- */}
-          <Animated.View
-            entering={FadeInUp.delay(200).duration(900)}
-            style={styles.headerContainer}
-          >
-            <Animated.View
-              entering={ZoomIn.delay(400).duration(720)}
-              style={styles.logoWrapper}
-            >
+          <View style={styles.headerContainer}>
+            <View style={styles.logoWrapper}>
               <Image
                 source={require('../assets/images/logo.jpeg')}
                 style={styles.logoImage}
               />
-            </Animated.View>
-            <Animated.Text
-              entering={FadeIn.delay(800).duration(720)}
-              style={styles.welcomeTitle}
-            >
+            </View>
+            <Text style={styles.welcomeTitle}>
               Bem-vindo ao FinançasApp
-            </Animated.Text>
-            <Animated.Text
-              entering={FadeIn.delay(1000).duration(720)}
-              style={styles.welcomeSubtitle}
-            >
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
               Sua jornada para a liberdade financeira começa aqui.
-            </Animated.Text>
-          </Animated.View>
+            </Text>
+          </View>
 
           {/* --- BOTÕES DE AÇÃO --- */}
-          <Animated.View
-            entering={FadeInDown.delay(1200).duration(900)}
-            style={styles.actionsContainer}
-          >
+          <View style={styles.actionsContainer}>
             {/* Botão E-mail */}
             <TouchableOpacity
               style={styles.emailButton}
@@ -87,7 +66,7 @@ export default function WelcomeScreen() {
                 <Text style={styles.footerLink}>Cadastre-se</Text>
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </View>
         </SafeAreaView>
       </LinearGradient>
     </View>
