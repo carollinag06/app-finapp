@@ -98,7 +98,10 @@ export const useTransactionStore = create<TransactionStore>()(
           const { data: { user }, error: authError } = await supabase.auth.getUser();
           if (authError || !user) throw new Error("Usuário não autenticado");
 
-          const transactionsWithUserId = newTransactions.map(t => ({ ...t, user_id: user.id }));
+          const transactionsWithUserId = newTransactions.map(t => ({
+            ...t,
+            user_id: user.id
+          }));
 
           const { data, error } = await supabase
             .from('transactions')
@@ -109,6 +112,7 @@ export const useTransactionStore = create<TransactionStore>()(
             console.error("Erro Supabase addTransactions:", error);
             throw new Error(`Erro ao salvar transações: ${error.message}`);
           }
+
           if (data) {
             set((state) => ({
               transactions: [...data, ...state.transactions]

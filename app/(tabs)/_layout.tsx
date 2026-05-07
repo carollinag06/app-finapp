@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { Redirect, router, Tabs } from 'expo-router';
-import React, { useRef } from 'react';
+import { router, Tabs } from 'expo-router';
+import { useRef } from 'react';
 import {
   Animated,
   Platform,
@@ -11,7 +11,6 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
 
 // --- TEMA ---
 const theme = {
@@ -63,29 +62,6 @@ const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const [session, setSession] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) return null;
-
-  // Se não houver sessão, redireciona para welcome IMEDIATAMENTE
-  if (!session) {
-    return <Redirect href="/welcome" />;
-  }
 
   // Aumentamos o padding inferior de forma equilibrada para Android e iOS
   const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'android' ? 12 : 12);

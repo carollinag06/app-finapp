@@ -35,10 +35,15 @@ export default function RootLayout() {
   const [session, setSession] = useState<any>(null);
 
   const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
+  const resetTransactions = useTransactionStore((state) => state.reset);
   const fetchBudgets = useBudgetStore((state) => state.fetchBudgets);
+  const resetBudgets = useBudgetStore((state) => state.reset);
   const fetchCards = useCardStore((state) => state.fetchCards);
+  const resetCards = useCardStore((state) => state.reset);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+  const resetCategories = useCategoryStore((state) => state.reset);
   const fetchInvestments = useInvestmentStore((state) => state.fetchInvestments);
+  const resetInvestments = useInvestmentStore((state) => state.reset);
 
   useEffect(() => {
     // Escuta mudanças no estado de autenticação
@@ -54,13 +59,20 @@ export default function RootLayout() {
         fetchCards();
         fetchCategories();
         fetchInvestments();
+      } else {
+        // Se não houver sessão (ex: SIGNED_OUT), limpa os stores
+        resetTransactions();
+        resetBudgets();
+        resetCards();
+        resetCategories();
+        resetInvestments();
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchTransactions, fetchBudgets, fetchCards, fetchCategories, fetchInvestments]);
+  }, [fetchTransactions, resetTransactions, fetchBudgets, resetBudgets, fetchCards, resetCards, fetchCategories, resetCategories, fetchInvestments, resetInvestments]);
 
   // Efeito centralizado para lidar com a navegação baseada no estado de autenticação
   useEffect(() => {

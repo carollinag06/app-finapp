@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { safeStorage } from '../src/lib/storage';
 import { supabase } from '../src/lib/supabase';
 
 export interface Category {
@@ -31,130 +33,139 @@ interface CategoryState {
   addCategory: (newCategory: Omit<Category, 'id' | 'is_default'>) => Promise<void>;
   updateCategory: (id: string, updatedCategory: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
-  resetCategories: () => void;
+  reset: () => void;
 }
 
-export const useCategoryStore = create<CategoryState>((set) => ({
-  categories: DEFAULT_CATEGORIES,
+export const useCategoryStore = create<CategoryState>()(
+  persist(
+    (set) => ({
+      categories: DEFAULT_CATEGORIES,
 
-  fetchCategories: async () => {
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        // Se não houver usuário, garantimos que pelo menos as padrões apareçam
-        set({ categories: DEFAULT_CATEGORIES });
-        return;
-      }
+      reset: () => set({ categories: DEFAULT_CATEGORIES }),
 
-      // 1. Tenta buscar categorias do usuário ou globais
-      let query = supabase
-        .from('categories')
-        .select('*');
+      fetchCategories: async () => {
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) {
+            // Se não houver usuário, garantimos que pelo menos as padrões apareçam
+            set({ categories: DEFAULT_CATEGORIES });
+            return;
+          }
 
-      // Tenta usar a coluna is_default se ela existir, senão busca apenas por user_id
-      let { data, error } = await query
-        .or(`user_id.eq.${user.id},is_default.eq.true`)
-        .order('name');
+          // 1. Tenta buscar categorias do usuário ou globais
+          let query = supabase
+            .from('categories')
+            .select('*');
 
-      if (error) {
-        console.warn("Erro ao carregar categorias com is_default, tentando apenas user_id:", error.message);
-        // Fallback: busca apenas categorias do usuário
-        const { data: userData, error: userError } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('name');
+          // Tenta usar a coluna is_default se ela existir, senão busca apenas por user_id
+          let { data, error } = await query
+            .or(`user_id.eq.${user.id},is_default.eq.true`)
+            .order('name');
 
-        if (userError) {
-          console.error("Erro crítico ao carregar categorias do usuário:", userError);
-          // Se falhou tudo, mantém as padrões
+          if (error) {
+            console.warn("Erro ao carregar categorias com is_default, tentando apenas user_id:", error.message);
+            // Fallback: busca apenas categorias do usuário
+            const { data: userData, error: userError } = await supabase
+              .from('categories')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('name');
+
+            if (userError) {
+              console.error("Erro crítico ao carregar categorias do usuário:", userError);
+              // Se falhou tudo, mantém as padrões
+              set({ categories: DEFAULT_CATEGORIES });
+              return;
+            }
+            data = userData;
+          }
+
+          // 2. Se houver categorias no banco, mesclamos com as padrões (evitando duplicatas por nome)
+          if (data && data.length > 0) {
+            const dbCategoryNames = new Set(data.map(c => c.name));
+            const missingDefaults = DEFAULT_CATEGORIES.filter(c => !dbCategoryNames.has(c.name));
+            set({ categories: [...data, ...missingDefaults] });
+          } else {
+            // Se não houver nada no banco, usa as padrões
+            set({ categories: DEFAULT_CATEGORIES });
+          }
+        } catch (err) {
+          console.error("Erro catch fetchCategories:", err);
           set({ categories: DEFAULT_CATEGORIES });
-          return;
         }
-        data = userData;
-      }
+      },
 
-      // 2. Se houver categorias no banco, mesclamos com as padrões (evitando duplicatas por nome)
-      if (data && data.length > 0) {
-        const dbCategoryNames = new Set(data.map(c => c.name));
-        const missingDefaults = DEFAULT_CATEGORIES.filter(c => !dbCategoryNames.has(c.name));
-        set({ categories: [...data, ...missingDefaults] });
-      } else {
-        // Se não houver nada no banco, usa as padrões
-        set({ categories: DEFAULT_CATEGORIES });
-      }
-    } catch (err) {
-      console.error("Erro catch fetchCategories:", err);
-      set({ categories: DEFAULT_CATEGORIES });
+      addCategory: async (newCategory) => {
+        try {
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError || !user) throw new Error("Usuário não autenticado");
+
+          const { data, error } = await supabase
+            .from('categories')
+            .insert([{ ...newCategory, user_id: user.id, is_default: false }])
+            .select();
+
+          if (error) {
+            console.error("Erro Supabase addCategory:", error);
+            throw new Error(`Erro ao salvar categoria: ${error.message}`);
+          }
+
+          if (data && data[0]) {
+            set((state) => ({
+              categories: [...state.categories, data[0]]
+            }));
+          }
+        } catch (err) {
+          console.error("Erro catch addCategory:", err);
+          throw err;
+        }
+      },
+
+      updateCategory: async (id, updatedCategory) => {
+        try {
+          const { error } = await supabase
+            .from('categories')
+            .update(updatedCategory)
+            .eq('id', id);
+
+          if (error) {
+            console.error("Erro Supabase updateCategory:", error);
+            throw new Error(`Erro ao atualizar categoria: ${error.message}`);
+          }
+
+          set((state) => ({
+            categories: state.categories.map((c) => c.id === id ? { ...c, ...updatedCategory } : c)
+          }));
+        } catch (err) {
+          console.error("Erro catch updateCategory:", err);
+          throw err;
+        }
+      },
+
+      deleteCategory: async (id) => {
+        try {
+          const { error } = await supabase
+            .from('categories')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error("Erro Supabase deleteCategory:", error);
+            throw new Error(`Erro ao excluir categoria: ${error.message}`);
+          }
+
+          set((state) => ({
+            categories: state.categories.filter((c) => c.id !== id)
+          }));
+        } catch (err) {
+          console.error("Erro catch deleteCategory:", err);
+          throw err;
+        }
+      },
+    }),
+    {
+      name: 'category-storage',
+      storage: createJSONStorage(() => safeStorage),
     }
-  },
-
-  addCategory: async (newCategory) => {
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("Usuário não autenticado");
-
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([{ ...newCategory, user_id: user.id, is_default: false }])
-        .select();
-
-      if (error) {
-        console.error("Erro ao adicionar categoria:", error);
-        throw new Error(`Erro ao salvar categoria: ${error.message}`);
-      }
-      if (data && data[0]) {
-        set((state) => ({
-          categories: [...state.categories, data[0]]
-        }));
-      }
-    } catch (err) {
-      console.error("Erro no addCategory:", err);
-      throw err;
-    }
-  },
-
-  updateCategory: async (id, updatedCategory) => {
-    try {
-      const { error } = await supabase
-        .from('categories')
-        .update(updatedCategory)
-        .eq('id', id);
-
-      if (error) {
-        console.error("Erro ao atualizar categoria:", error);
-        throw new Error(`Erro ao atualizar categoria: ${error.message}`);
-      }
-
-      set((state) => ({
-        categories: state.categories.map((c) => c.id === id ? { ...c, ...updatedCategory } : c)
-      }));
-    } catch (err) {
-      console.error("Erro no updateCategory:", err);
-      throw err;
-    }
-  },
-
-  deleteCategory: async (id) => {
-    try {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error("Erro ao excluir categoria:", error);
-        throw new Error(`Erro ao excluir categoria: ${error.message}`);
-      }
-
-      set((state) => ({
-        categories: state.categories.filter((c) => c.id !== id)
-      }));
-    } catch (err) {
-      console.error("Erro no deleteCategory:", err);
-      throw err;
-    }
-  },
-
-  resetCategories: () => set({ categories: [] }),
-}));
+  )
+);

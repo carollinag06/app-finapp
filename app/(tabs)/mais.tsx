@@ -72,10 +72,6 @@ export default function MoreScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const transactions = useTransactionStore(state => state.transactions);
-  const resetTransactions = useTransactionStore(state => state.reset);
-  const resetBudgets = useBudgetStore(state => state.reset);
-  const resetCards = useCardStore(state => state.reset);
-  const resetCategories = useCategoryStore(state => state.resetCategories);
 
   useEffect(() => {
     const getUser = async () => {
@@ -93,11 +89,8 @@ export default function MoreScreen() {
         style: "destructive",
         onPress: async () => {
           await supabase.auth.signOut();
-          resetTransactions();
-          resetBudgets();
-          resetCards();
-          resetCategories();
-          // Não precisamos de router.replace aqui, o onAuthStateChange no _layout cuidará disso
+          // Não precisamos de resetar os stores ou router.replace aqui, 
+          // o onAuthStateChange no _layout cuidará de limpar os dados e redirecionar
         }
       }
     ]);

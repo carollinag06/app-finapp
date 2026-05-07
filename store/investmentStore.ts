@@ -105,6 +105,7 @@ export const useInvestmentStore = create<InvestmentStore>()(
             console.error("Erro Supabase addInvestment:", error);
             throw new Error(`Erro ao salvar investimento: ${error.message}`);
           }
+
           if (data) {
             set((state) => ({
               investments: [data, ...state.investments]

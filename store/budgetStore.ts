@@ -1,7 +1,7 @@
+import { safeStorage } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { safeStorage } from '../src/lib/storage';
-import { supabase } from '../src/lib/supabase';
 
 export interface BudgetGoal {
   id: string;
