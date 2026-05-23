@@ -1,7 +1,6 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   Image,
@@ -67,16 +66,11 @@ const MenuItem = ({ icon, title, subtitle, onPress, color = theme.text, iconType
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
-  const [user, setUser] = useState<User | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { user: authUser, logout } = useAuthStore();
   const transactions = useTransactionStore(state => state.transactions);
-
-  useEffect(() => {
-    setUser(authUser as User | null);
-  }, [authUser]);
 
   const handleLogout = async () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
@@ -167,15 +161,11 @@ export default function MoreScreen() {
           <Animated.View entering={FadeInDown.delay(200).duration(650)}>
             <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/profile')}>
               <View style={styles.avatar}>
-                {user?.user_metadata?.avatar_url ? (
-                  <Image source={{ uri: user.user_metadata.avatar_url }} style={styles.avatarImage} />
-                ) : (
-                  <Ionicons name="person" size={32} color={theme.text} />
-                )}
+                <Ionicons name="person" size={32} color={theme.text} />
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.userName}>{user?.user_metadata?.full_name || 'Usuário FinApp'}</Text>
-                <Text style={styles.userEmail}>{user?.email || 'carregando...'}</Text>
+                <Text style={styles.userName}>{authUser?.name || 'Usuário FinApp'}</Text>
+                <Text style={styles.userEmail}>{authUser?.email || 'carregando...'}</Text>
               </View>
               <View style={styles.editBadge}>
                 <Text style={styles.editBadgeText}>Editar</Text>

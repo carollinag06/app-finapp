@@ -16,9 +16,9 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAuthStore } from '../../store/authStore';
 import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
 import { CreditCard, useCardStore } from '../../store/cardStore';
-import { calculateLiveBalance, useInvestmentStore } from '../../store/investmentStore';
 import { Transaction, useTransactionStore } from '../../store/transactionStore';
 
 // --- TIPAGEM ---
@@ -63,7 +63,6 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Lazer': 'game-controller',
   'Salário': 'cash',
   'Freelance': 'laptop',
-  'Investimento': 'trending-up',
   'Presente': 'gift',
   'Outros': 'pricetag',
 };
@@ -415,11 +414,6 @@ export default function Dashboard() {
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
   const { cards, markInvoiceAsPaid, isInvoicePaid, paidInvoices } = useCardStore();
-  const { investments, fetchInvestments } = useInvestmentStore();
-
-  useEffect(() => {
-    fetchInvestments();
-  }, [fetchInvestments]);
 
   // Alertas de Fatura
   // Alertas de Fatura - Versão Corrigida para "Hoje"
@@ -495,27 +489,6 @@ export default function Dashboard() {
     Alert.alert("Sucesso", "Fatura marcada como paga com sucesso!");
   };
 
-  // Investimentos reais com rendimento acumulado automático
-  const totalInvestido = useMemo(() =>
-    investments.reduce((acc, inv) => acc + calculateLiveBalance(inv), 0)
-    , [investments]);
-
-  const rendimentoEstimado = useMemo(() => {
-    // Cálculo do rendimento que será ganho HOJE (taxa diária sobre o saldo atual)
-    const ANNUAL_CDI = 0.1125;
-    const DAILY_RATE = Math.pow(1 + ANNUAL_CDI, 1 / 252) - 1;
-
-    return investments.reduce((acc, inv) => {
-      if (inv.cdi_percentage) {
-        const saldoAtualInv = calculateLiveBalance(inv);
-        const cdiFactor = inv.cdi_percentage / 100;
-        const rendimentoHoje = saldoAtualInv * DAILY_RATE * cdiFactor;
-        return acc + rendimentoHoje;
-      }
-      return acc;
-    }, 0);
-  }, [investments]);
-
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
     return transactions.filter((t: Transaction) => {
@@ -563,18 +536,6 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    async function testConnection() {
-      const { data, error } = await supabase.from('transactions').select('*').limit(1);
-      if (error) {
-        console.log("❌ Erro de conexão:", error.message);
-      } else {
-        console.log("✅ Conexão com Postgres estabelecida!", data);
-      }
-    }
-    testConnection();
-  }, []);
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
@@ -618,48 +579,6 @@ export default function Dashboard() {
 
           <Animated.View entering={FadeInDown.delay(1000).duration(720)}>
             <TransacoesRecentes transactions={monthlyTransactions} />
-          </Animated.View>
-
-          {/* Card de Investimento Real */}
-          <Animated.View entering={FadeInDown.delay(1200).duration(720)} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Investimentos</Text>
-              <TouchableOpacity onPress={() => router.push('/investimentos')}>
-                <Text style={styles.seeAllText}>Ver tudo</Text>
-              </TouchableOpacity>
-            </View>
-
-            {investments.length > 0 ? (
-              <TouchableOpacity
-                style={styles.investCard}
-                onPress={() => router.push('/investimentos')}
-              >
-                <View style={styles.investIconBg}>
-                  <MaterialCommunityIcons name="chart-areaspline" size={24} color={theme.primary} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text style={styles.investTitle}>
-                    {mostrarSaldo
-                      ? `R$ ${totalInvestido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                      : 'R$ •••••'}
-                  </Text>
-                  <Text style={styles.investSubtitle}>
-                    {rendimentoEstimado > 0
-                      ? `Rendendo aprox. R$ ${rendimentoEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / dia`
-                      : 'Acompanhe seus rendimentos'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={theme.border} />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.emptyState}
-                onPress={() => router.push('/new-investment')}
-              >
-                <MaterialCommunityIcons name="cash-plus" size={40} color={theme.border} />
-                <Text style={styles.emptyStateText}>Nenhum investimento cadastrado.</Text>
-              </TouchableOpacity>
-            )}
           </Animated.View>
 
         </ScrollView>
@@ -1001,34 +920,6 @@ const styles = StyleSheet.create({
     color: theme.textMuted,
     marginTop: 12,
     fontSize: 14,
-  },
-  // Invest Card
-  investCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.surface,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  investIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  investTitle: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  investSubtitle: {
-    color: theme.textMuted,
-    fontSize: 13,
-    marginTop: 2,
   },
   // Alertas de Fatura
   alertCard: {

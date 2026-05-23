@@ -36,11 +36,11 @@ const MAX_WIDTH = 600;
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const { user, logout, updateProfile } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const resetTransactions = useTransactionStore(state => state.reset);
   const resetBudgets = useBudgetStore(state => state.reset);

@@ -1,17 +1,17 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
 
 interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
 }
 
 interface AuthStore {
   user: User | null;
-  token: string | null;
+  users: User[]; // Lista local de usuários
   isAuthReady: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
@@ -24,45 +24,55 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       user: null,
-      token: null,
+      users: [],
       isAuthReady: false,
 
       login: async (email, password) => {
-        const { data } = await api.post('/auth/login', { email, password });
-        await safeStorage.setItem('auth-token', data.token);
-        set({ user: data.user, token: data.token });
+        const user = get().users.find(u => u.email === email && u.password === password);
+        if (!user) {
+          throw new Error('E-mail ou senha inválidos');
+        }
+        set({ user });
       },
 
       register: async (name, email, password) => {
-        const { data } = await api.post('/auth/register', { name, email, password });
-        await safeStorage.setItem('auth-token', data.token);
-        set({ user: data.user, token: data.token });
+        const existingUser = get().users.find(u => u.email === email);
+        if (existingUser) {
+          throw new Error('E-mail já cadastrado');
+        }
+
+        const newUser: User = {
+          id: Math.random().toString(36).substring(2, 9),
+          name,
+          email,
+          password
+        };
+
+        set({ 
+          users: [...get().users, newUser],
+          user: newUser
+        });
       },
 
       logout: async () => {
-        await safeStorage.removeItem('auth-token');
-        set({ user: null, token: null });
+        set({ user: null });
       },
 
       checkAuth: async () => {
-        try {
-          const token = await safeStorage.getItem('auth-token');
-          if (!token) {
-            set({ isAuthReady: true });
-            return;
-          }
-
-          const { data } = await api.get('/auth/me');
-          set({ user: data, token, isAuthReady: true });
-        } catch (error) {
-          await safeStorage.removeItem('auth-token');
-          set({ user: null, token: null, isAuthReady: true });
-        }
+        set({ isAuthReady: true });
       },
 
       updateProfile: async (name) => {
-        const { data } = await api.put('/auth/profile', { name });
-        set({ user: data });
+        const currentUser = get().user;
+        if (!currentUser) return;
+
+        const updatedUser = { ...currentUser, name };
+        const updatedUsers = get().users.map(u => u.id === currentUser.id ? updatedUser : u);
+
+        set({ 
+          user: updatedUser,
+          users: updatedUsers
+        });
       }
     }),
     {

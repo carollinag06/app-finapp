@@ -8,7 +8,6 @@ import { useAuthStore } from '../store/authStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
 import { useCategoryStore } from '../store/categoryStore';
-import { useInvestmentStore } from '../store/investmentStore';
 import { useTransactionStore } from '../store/transactionStore';
 
 // Polyfill para Trusted Types no ambiente Web Preview (Trae)
@@ -23,7 +22,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in 
         createScriptURL: (string: string) => string,
       });
     }
-  } catch { statistics
+  } catch {
     // Falha silenciosa se não puder criar política (ex: já existe ou restrição de CSP)
   }
 }
@@ -42,8 +41,6 @@ export default function RootLayout() {
   const resetCards = useCardStore((state) => state.reset);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
   const resetCategories = useCategoryStore((state) => state.reset);
-  const fetchInvestments = useInvestmentStore((state) => state.fetchInvestments);
-  const resetInvestments = useInvestmentStore((state) => state.reset);
 
   useEffect(() => {
     checkAuth();
@@ -51,30 +48,32 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (user) {
-      // Sincronizar dados com o backend quando o usuário estiver logado
+      // Garantir que os dados locais sejam carregados/iniciados se necessário
       fetchTransactions();
       fetchBudgets();
       fetchCards();
       fetchCategories();
-      fetchInvestments();
     } else {
       resetTransactions();
       resetBudgets();
       resetCards();
       resetCategories();
-      resetInvestments();
     }
   }, [user]);
 
   useEffect(() => {
     if (!isAuthReady || !rootNavigationState?.key) return;
 
-    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'new-transaction' || segments[0] === 'new-card' || segments[0] === 'profile' || segments[0] === 'categories' || segments[0] === 'new-investment' || segments[0] === 'investment-details';
+    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'new-transaction' || segments[0] === 'new-card' || segments[0] === 'profile' || segments[0] === 'categories';
 
     if (!user && inAuthGroup) {
-      router.replace('/welcome');
+      setTimeout(() => {
+        router.replace('/welcome');
+      }, 0);
     } else if (user && !inAuthGroup) {
-      router.replace('/(tabs)');
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 0);
     }
   }, [user, isAuthReady, segments, rootNavigationState?.key]);
 
@@ -88,58 +87,38 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" />
           <Stack.Screen name="login" />
           <Stack.Screen name="cadastro" />
-
-          {/* Só permite acesso ao grupo (tabs) e modais se houver sessão */}
-          {user ? (
-            <>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="new-transaction"
-                options={{
-                  presentation: 'modal',
-                  headerShown: true,
-                  title: 'Nova Transação',
-                  headerStyle: { backgroundColor: '#1E1E1E' },
-                  headerTintColor: '#FFFFFF',
-                }}
-              />
-              <Stack.Screen
-                name="new-card"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="profile"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="categories"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="new-investment"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="investment-details"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-            </>
-          ) : null}
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="new-transaction"
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              title: 'Nova Transação',
+              headerStyle: { backgroundColor: '#1E1E1E' },
+              headerTintColor: '#FFFFFF',
+            }}
+          />
+          <Stack.Screen
+            name="new-card"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="profile"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="categories"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
         </Stack>
       </GestureHandlerRootView>
     </SafeAreaProvider>

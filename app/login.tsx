@@ -55,22 +55,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert('Aviso', 'Por favor, insira seu e-mail para recuperar a senha.');
-      return;
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-
-    if (error) {
-      console.error("Erro ao recuperar senha:", error);
-      Alert.alert('Erro na Recuperação', error.message || "Não foi possível enviar o e-mail de recuperação no momento.");
-    } else {
-      Alert.alert('Sucesso', 'Um e-mail de recuperação foi enviado para o seu endereço. Verifique também sua caixa de spam.');
-    }
-  };
-
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
@@ -131,15 +115,6 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Esqueceu a senha */}
-            <TouchableOpacity
-              style={styles.forgotPasswordButton}
-              onPress={handleForgotPassword}
-              disabled={loading}
-            >
-              <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
-            </TouchableOpacity>
 
             {/* Botão Entrar */}
             <TouchableOpacity
@@ -245,15 +220,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   // Ações
-  forgotPasswordButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    color: theme.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   loginButton: {
     backgroundColor: theme.primary,
     height: 56,

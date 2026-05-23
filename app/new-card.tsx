@@ -1,5 +1,4 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -95,13 +94,11 @@ export default function NewCardScreen() {
     const numericLimit = Number(limit) / 100;
 
     if (!name.trim()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Erro", "Por favor, insira o nome do cartão.");
       return;
     }
 
     if (isNaN(numericLimit) || numericLimit <= 0) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Erro", "Por favor, insira um limite válido.");
       return;
     }
@@ -122,7 +119,6 @@ export default function NewCardScreen() {
       } else {
         await addCard(cardData);
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err) {
       console.error("Erro ao salvar cartão:", err);
@@ -134,7 +130,6 @@ export default function NewCardScreen() {
   }, [name, limit, closingDay, dueDay, selectedColor, selectedBrand, editId, addCard, updateCard]);
 
   const handleDelete = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert("Excluir Cartão", "Deseja realmente excluir este cartão?", [
       { text: "Cancelar", style: "cancel" },
       {
@@ -165,12 +160,10 @@ export default function NewCardScreen() {
   };
 
   const onSelectColor = (color: CardColor) => {
-    Haptics.selectionAsync();
     setSelectedColor(color);
   };
 
   const onSelectBrand = (brand: string) => {
-    Haptics.selectionAsync();
     setSelectedBrand(brand);
   };
 

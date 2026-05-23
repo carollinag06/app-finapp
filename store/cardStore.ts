@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
 
 export interface CreditCard {
@@ -47,48 +46,31 @@ export const useCardStore = create<CardStore>()(
       },
 
       fetchCards: async () => {
-        try {
-          const { data } = await api.get('/cards');
-          set({ cards: data });
-        } catch (error) {
-          console.error('Erro ao buscar cartões:', error);
-        }
+        // Agora os dados já estão no cache (persistência do Zustand)
       },
 
       addCard: async (newCard) => {
-        try {
-          const { data } = await api.post('/cards', newCard);
-          set((state) => ({
-            cards: [data, ...state.cards]
-          }));
-        } catch (error) {
-          console.error('Erro ao adicionar cartão:', error);
-          throw error;
-        }
+        const card: CreditCard = {
+          ...newCard,
+          id: Math.random().toString(36).substring(2, 9),
+        };
+        set((state) => ({
+          cards: [card, ...state.cards]
+        }));
       },
 
       updateCard: async (id, updatedCard) => {
-        try {
-          const { data } = await api.put(`/cards/${id}`, updatedCard);
-          set((state) => ({
-            cards: state.cards.map((c) => c.id === id ? data : c)
-          }));
-        } catch (error) {
-          console.error('Erro ao atualizar cartão:', error);
-          throw error;
-        }
+        set((state) => ({
+          cards: state.cards.map((c) => 
+            c.id === id ? { ...c, ...updatedCard } : c
+          )
+        }));
       },
 
       deleteCard: async (id) => {
-        try {
-          await api.delete(`/cards/${id}`);
-          set((state) => ({
-            cards: state.cards.filter((c) => c.id !== id)
-          }));
-        } catch (error) {
-          console.error('Erro ao excluir cartão:', error);
-          throw error;
-        }
+        set((state) => ({
+          cards: state.cards.filter((c) => c.id !== id)
+        }));
       },
     }),
     {

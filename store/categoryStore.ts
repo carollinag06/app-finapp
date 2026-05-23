@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import api from '../src/lib/api';
 import { safeStorage } from '../src/lib/storage';
 
 export interface Category {
@@ -44,57 +43,38 @@ export const useCategoryStore = create<CategoryState>()(
       reset: () => set({ categories: DEFAULT_CATEGORIES }),
 
       fetchCategories: async () => {
-        try {
-          const { data } = await api.get('/categories');
-          // Mesclar padrões com remotas, evitando duplicatas
-          const customCategories = data.filter((c: Category) => !c.is_default);
-          set({ categories: [...DEFAULT_CATEGORIES, ...customCategories] });
-        } catch (error) {
-          console.error('Erro ao buscar categorias:', error);
-        }
+        // Agora os dados já estão no cache (persistência do Zustand)
       },
 
       addCategory: async (newCategory) => {
-        try {
-          const { data } = await api.post('/categories', { ...newCategory, is_default: false });
-          set((state) => ({
-            categories: [...state.categories, data]
-          }));
-        } catch (error) {
-          console.error('Erro ao adicionar categoria:', error);
-          throw error;
-        }
+        const category: Category = {
+          ...newCategory,
+          id: Math.random().toString(36).substring(2, 9),
+          is_default: false,
+        };
+        set((state) => ({
+          categories: [...state.categories, category]
+        }));
       },
 
       updateCategory: async (id, updatedCategory) => {
-        try {
-          // Só permite atualizar se não for padrão ou se estiver no backend
-          const category = get().categories.find(c => c.id === id);
-          if (category?.is_default) return;
+        const category = get().categories.find(c => c.id === id);
+        if (category?.is_default) return;
 
-          const { data } = await api.put(`/categories/${id}`, updatedCategory);
-          set((state) => ({
-            categories: state.categories.map((c) => c.id === id ? data : c)
-          }));
-        } catch (error) {
-          console.error('Erro ao atualizar categoria:', error);
-          throw error;
-        }
+        set((state) => ({
+          categories: state.categories.map((c) => 
+            c.id === id ? { ...c, ...updatedCategory } : c
+          )
+        }));
       },
 
       deleteCategory: async (id) => {
-        try {
-          const category = get().categories.find(c => c.id === id);
-          if (category?.is_default) return;
+        const category = get().categories.find(c => c.id === id);
+        if (category?.is_default) return;
 
-          await api.delete(`/categories/${id}`);
-          set((state) => ({
-            categories: state.categories.filter((c) => c.id !== id)
-          }));
-        } catch (error) {
-          console.error('Erro ao excluir categoria:', error);
-          throw error;
-        }
+        set((state) => ({
+          categories: state.categories.filter((c) => c.id !== id)
+        }));
       },
     }),
     {
