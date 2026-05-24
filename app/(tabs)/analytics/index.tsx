@@ -14,36 +14,16 @@ import {
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBudgetStore } from '../../store/budgetStore';
-import { useCategoryStore } from '../../store/categoryStore';
-import { useTransactionStore } from '../../store/transactionStore';
+import { useBudgetStore } from '../../../store/budgetStore';
+import { useCategoryStore } from '../../../store/categoryStore';
+import { useTransactionStore } from '../../../store/transactionStore';
+import { theme } from '../../../src/constants/theme';
+import { formatCurrency, getMonthName } from '../../../src/utils/format';
+import { styles } from './styles';
 
 // --- DIMENSÕES E TEMA ---
 const screenWidth = Dimensions.get('window').width;
 const chartWidth = screenWidth - 40; // Mais largo para ocupar melhor o espaço
-
-const theme = {
-  bg: '#0F0F12', // Escuro mais profundo
-  surface: '#1A1A1F', // Superfície mais rica
-  surfaceLight: '#25252D', // Variação para destaque
-  text: '#FFFFFF',
-  textMuted: '#8E8E93', // Estilo Apple cinza
-  primary: '#8A2BE2', // Roxo vívido
-  primaryLight: 'rgba(138, 43, 226, 0.15)',
-  danger: '#FF453A',  // Vermelho vibrante
-  dangerLight: 'rgba(255, 69, 58, 0.15)',
-  success: '#32D74B', // Verde vibrante
-  successLight: 'rgba(50, 215, 75, 0.15)',
-  warning: '#FFD60A', // Amarelo vívido
-  info: '#64D2FF',    // Azul claro
-  border: '#2C2C2E',
-  shadow: '#000000',
-};
-
-const monthNames = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
 
 // --- COMPONENTES MENORES ---
 
@@ -73,7 +53,7 @@ const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: MonthSelec
         <Ionicons name="chevron-back" size={22} color={theme.text} />
       </TouchableOpacity>
       <View style={styles.monthInfo}>
-        <Text style={styles.monthText}>{monthNames[currentMonth]}</Text>
+        <Text style={styles.monthText}>{getMonthName(currentMonth)}</Text>
         <Text style={styles.yearText}>{currentYear}</Text>
       </View>
       <TouchableOpacity style={styles.monthArrow} onPress={onNext}>
@@ -169,7 +149,7 @@ const RankingBar = ({ label, value, percentage, color, icon }: RankingBarProps) 
     <View style={{ flex: 1 }}>
       <View style={styles.rankingHeader}>
         <Text style={styles.rankingLabel}>{label}</Text>
-        <Text style={styles.rankingValue}>R$ {value}</Text>
+        <Text style={styles.rankingValue}>{value}</Text>
       </View>
       <View style={styles.progressBarBg}>
         <View style={[styles.progressBarFill, { backgroundColor: color, width: `${percentage}%` }]} />
@@ -383,7 +363,7 @@ export default function AnalyticsScreen() {
   }, [currentMonthStats]);
 
   const rankingData = useMemo(() => {
-    const categories: Record<string, number> = {};
+    const categoriesMap: Record<string, number> = {};
     // Se estiver na aba Geral ou Cartão, mostramos apenas despesas/gastos no ranking
     const transactionsForRanking = (activeTab === 'geral' || activeTab === 'cartao')
       ? monthlyTransactions.filter(t => t.type === 'expense')
@@ -395,12 +375,12 @@ export default function AnalyticsScreen() {
       : transactionsForRanking;
 
     finalTransactions.forEach(t => {
-      categories[t.category] = (categories[t.category] || 0) + t.value;
+      categoriesMap[t.category] = (categoriesMap[t.category] || 0) + t.value;
     });
 
-    const totalRankingValue = Object.values(categories).reduce((acc, v) => acc + v, 0);
+    const totalRankingValue = Object.values(categoriesMap).reduce((acc, v) => acc + v, 0);
 
-    return Object.entries(categories)
+    return Object.entries(categoriesMap)
       .map(([name, value]) => ({
         name,
         value,
@@ -580,12 +560,12 @@ export default function AnalyticsScreen() {
                     Total de {activeTab === 'receitas' ? 'Receitas' : activeTab === 'cartao' ? 'Gastos no Cartão' : 'Despesas'}
                   </Text>
                   <Text style={[styles.totalTabValue, { color: activeTab === 'receitas' ? theme.success : activeTab === 'cartao' ? theme.warning : theme.danger }]}>
-                    R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(totalValue)}
                   </Text>
                   <Text style={styles.totalTabSubValue}>
-                    Média: R$ {(() => {
+                    Média: {(() => {
                       const avg = activeTab === 'receitas' ? dailyAverages.income : activeTab === 'cartao' ? (totalValue / Math.max(new Date().getDate(), 1)) : dailyAverages.expense;
-                      return avg.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+                      return formatCurrency(avg);
                     })()} / dia
                   </Text>
                 </View>
@@ -635,9 +615,9 @@ export default function AnalyticsScreen() {
                     </View>
                     <Text style={styles.summaryLabel}>Receitas</Text>
                     <Text style={[styles.summaryValue, { color: theme.success }]}>
-                      R$ {currentMonthStats.income.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                      {formatCurrency(currentMonthStats.income)}
                     </Text>
-                    <Text style={styles.summaryDailyAvg}>Média: R$ {dailyAverages.income.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/dia</Text>
+                    <Text style={styles.summaryDailyAvg}>Média: {formatCurrency(dailyAverages.income)}/dia</Text>
                     <View style={styles.comparisonRow}>
                       <Ionicons
                         name={incomeComparison.improved ? "arrow-up" : "arrow-down"}
@@ -656,9 +636,9 @@ export default function AnalyticsScreen() {
                     </View>
                     <Text style={styles.summaryLabel}>Despesas</Text>
                     <Text style={[styles.summaryValue, { color: theme.danger }]}>
-                      R$ {currentMonthStats.expense.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                      {formatCurrency(currentMonthStats.expense)}
                     </Text>
-                    <Text style={styles.summaryDailyAvg}>Média: R$ {dailyAverages.expense.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}/dia</Text>
+                    <Text style={styles.summaryDailyAvg}>Média: {formatCurrency(dailyAverages.expense)}/dia</Text>
                     <View style={styles.comparisonRow}>
                       <Ionicons
                         name={expenseComparison.improved ? "arrow-up" : "arrow-down"}
@@ -682,7 +662,7 @@ export default function AnalyticsScreen() {
                       <View>
                         <Text style={[styles.summaryLabel, { marginBottom: 2 }]}>Fatura de Cartão (Pendente)</Text>
                         <Text style={[styles.summaryValue, { fontSize: 20, marginBottom: 0, color: theme.warning }]}>
-                          R$ {currentMonthStats.pending.toLocaleString('pt-BR')}
+                          {formatCurrency(currentMonthStats.pending)}
                         </Text>
                       </View>
                     </View>
@@ -693,7 +673,7 @@ export default function AnalyticsScreen() {
                 <ChartCard title="Distribuição de Caixa" subtitle="Receitas vs Despesas">
                   <DonutChart
                     data={comparativoGeralData}
-                    centerText={`R$ ${currentMonthStats.balance.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    centerText={formatCurrency(currentMonthStats.balance)}
                     centerSubtext="Saldo Líquido"
                   />
                 </ChartCard>
@@ -706,7 +686,7 @@ export default function AnalyticsScreen() {
                     <RankingBar
                       key={index}
                       label={item.name}
-                      value={item.value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                      value={formatCurrency(item.value)}
                       percentage={item.percentage}
                       color={item.color}
                       icon={item.icon}
@@ -724,7 +704,7 @@ export default function AnalyticsScreen() {
                       <View>
                         <Text style={[styles.summaryLabel, { marginBottom: 2 }]}>Deste total, pendente no Cartão</Text>
                         <Text style={[styles.summaryValue, { fontSize: 20, marginBottom: 0, color: theme.warning }]}>
-                          R$ {currentMonthStats.pending.toLocaleString('pt-BR')}
+                          {formatCurrency(currentMonthStats.pending)}
                         </Text>
                       </View>
                     </View>
@@ -735,7 +715,7 @@ export default function AnalyticsScreen() {
                 <ChartCard title="Divisão Proporcional" subtitle="Participação de cada categoria">
                   <DonutChart
                     data={donutCategoriaData}
-                    centerText={`R$ ${totalValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    centerText={formatCurrency(totalValue)}
                     centerSubtext="Total"
                   />
                 </ChartCard>
@@ -761,7 +741,7 @@ export default function AnalyticsScreen() {
                         <View key={idx} style={{ marginBottom: 16 }}>
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                             <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>{b.category}</Text>
-                            <Text style={{ color: theme.textMuted, fontSize: 12 }}>R$ {spent.toLocaleString('pt-BR')} / {b.amount.toLocaleString('pt-BR')}</Text>
+                            <Text style={{ color: theme.textMuted, fontSize: 12 }}>{formatCurrency(spent)} / {formatCurrency(b.amount)}</Text>
                           </View>
                           <View style={{ height: 6, backgroundColor: theme.border, borderRadius: 3, overflow: 'hidden' }}>
                             <View style={{ height: '100%', width: `${percent}%`, backgroundColor: percent > 90 ? theme.danger : b.color || theme.primary }} />
@@ -771,7 +751,7 @@ export default function AnalyticsScreen() {
                     })}
                     <TouchableOpacity
                       style={{ marginTop: 8, alignItems: 'center' }}
-                      onPress={() => router.push('/budget')}
+                      onPress={() => router.push('/metas')}
                     >
                       <Text style={{ color: theme.primary, fontSize: 13, fontWeight: 'bold' }}>Ver todas as metas</Text>
                     </TouchableOpacity>
@@ -790,7 +770,7 @@ export default function AnalyticsScreen() {
                       <Ionicons name="star" size={16} color={theme.primary} />
                     </View>
                     <Text style={styles.insightLabel}>Maior {activeTab === 'receitas' ? 'Entrada' : activeTab === 'cartao' ? 'Gasto no Cartão' : 'Gasto'}</Text>
-                    <Text style={styles.insightValue}>R$ {insights.highest.value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</Text>
+                    <Text style={styles.insightValue}>{formatCurrency(insights.highest.value)}</Text>
                     <Text style={styles.insightSubValue} numberOfLines={1}>{insights.highest.description}</Text>
                   </View>
 
@@ -799,7 +779,7 @@ export default function AnalyticsScreen() {
                       <Ionicons name="calculator" size={16} color={theme.info} />
                     </View>
                     <Text style={styles.insightLabel}>Média Diária</Text>
-                    <Text style={styles.insightValue}>R$ {insights.dailyAvg.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</Text>
+                    <Text style={styles.insightValue}>{formatCurrency(insights.dailyAvg)}</Text>
                     <Text style={styles.insightSubValue}>Este mês</Text>
                   </View>
                 </View>
@@ -832,471 +812,3 @@ export default function AnalyticsScreen() {
     </View>
   );
 }
-
-// --- ESTILOS ---
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: theme.textMuted,
-    fontWeight: '500',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.text,
-    letterSpacing: -0.5,
-  },
-  headerIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  monthSelectorContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  monthArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: theme.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthInfo: {
-    alignItems: 'center',
-  },
-  monthText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.text,
-  },
-  yearText: {
-    fontSize: 12,
-    color: theme.textMuted,
-    fontWeight: '500',
-  },
-  subTabsWrapper: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  subTabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: theme.surface,
-    borderRadius: 14,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: theme.border,
-    minWidth: '100%',
-  },
-  subTabItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    borderRadius: 10,
-    minWidth: 80,
-  },
-  subTabItemActive: {
-    backgroundColor: theme.surfaceLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  subTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.textMuted,
-  },
-  subTabTextActive: {
-    color: theme.text,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 10,
-  },
-  filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: theme.surface,
-    borderWidth: 1,
-    borderColor: theme.border,
-    gap: 6,
-  },
-  filterPillActive: {
-    backgroundColor: theme.primaryLight,
-    borderColor: theme.primary,
-  },
-  filterText: {
-    color: theme.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: theme.primary,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-  },
-  card: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: theme.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  cardTitle: {
-    color: theme.text,
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: -0.3,
-  },
-  cardSubtitle: {
-    color: theme.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  chartWrapper: {
-    alignItems: 'center',
-    marginHorizontal: -10,
-  },
-  lineChart: {
-    borderRadius: 16,
-  },
-  // Donut
-  donutWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerAll: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutHole: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  donutCenterText: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  donutCenterSubtext: {
-    color: theme.textMuted,
-    fontSize: 10,
-    marginTop: 2,
-  },
-  customLegendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 24,
-    gap: 12,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.surfaceLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    maxWidth: '45%',
-  },
-  legendColor: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  legendText: {
-    color: theme.textMuted,
-    fontSize: 11,
-  },
-  legendValue: {
-    color: theme.text,
-    fontWeight: 'bold',
-  },
-  // Ranking
-  rankingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-    gap: 12,
-  },
-  rankingIconContainer: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  rankingLabel: {
-    color: theme.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rankingValue: {
-    color: theme.text,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: theme.border,
-    borderRadius: 3,
-    width: '100%',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  // Summary Grid
-  summaryGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  summarySmallCard: {
-    flex: 1,
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  summaryIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  summaryLabel: {
-    color: theme.textMuted,
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  summaryDailyAvg: {
-    fontSize: 11,
-    color: theme.textMuted,
-    marginBottom: 8,
-  },
-  comparisonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  comparisonText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  // Total Tab Card
-  totalTabCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  totalTabIconBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  totalTabLabel: {
-    color: theme.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  totalTabValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  totalTabSubValue: {
-    fontSize: 13,
-    color: theme.textMuted,
-  },
-  // Empty State
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateIconBg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  emptyStateTitle: {
-    color: theme.text,
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    color: theme.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  // Insights
-  insightsContainer: {
-    marginBottom: 24,
-  },
-  insightsTitle: {
-    color: theme.text,
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    letterSpacing: -0.3,
-  },
-  insightRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  insightCard: {
-    flex: 1,
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  insightIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  insightLabel: {
-    color: theme.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  insightValue: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  insightSubValue: {
-    color: theme.textMuted,
-    fontSize: 10,
-  },
-  // Tips
-  tipsCard: {
-    backgroundColor: theme.surfaceLight,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 30,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.warning,
-  },
-  tipsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  tipsTitle: {
-    color: theme.text,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  tipsContent: {
-    color: theme.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});

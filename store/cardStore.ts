@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
 export interface CreditCard {
@@ -16,7 +17,6 @@ export interface CreditCard {
 interface CardStore {
   cards: CreditCard[];
   paidInvoices: string[]; // Formato: 'cardId-month-year'
-  fetchCards: () => Promise<void>;
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
   updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
@@ -45,14 +45,10 @@ export const useCardStore = create<CardStore>()(
         return get().paidInvoices.includes(id);
       },
 
-      fetchCards: async () => {
-        // Agora os dados já estão no cache (persistência do Zustand)
-      },
-
       addCard: async (newCard) => {
         const card: CreditCard = {
           ...newCard,
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
         };
         set((state) => ({
           cards: [card, ...state.cards]

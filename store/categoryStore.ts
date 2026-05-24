@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
 export interface Category {
@@ -28,7 +29,6 @@ const DEFAULT_CATEGORIES: Category[] = [
 
 interface CategoryState {
   categories: Category[];
-  fetchCategories: () => Promise<void>;
   addCategory: (newCategory: Omit<Category, 'id' | 'is_default'>) => Promise<void>;
   updateCategory: (id: string, updatedCategory: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -42,14 +42,10 @@ export const useCategoryStore = create<CategoryState>()(
 
       reset: () => set({ categories: DEFAULT_CATEGORIES }),
 
-      fetchCategories: async () => {
-        // Agora os dados já estão no cache (persistência do Zustand)
-      },
-
       addCategory: async (newCategory) => {
         const category: Category = {
           ...newCategory,
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
           is_default: false,
         };
         set((state) => ({

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
 export interface BudgetGoal {
@@ -14,7 +15,6 @@ export interface BudgetGoal {
 
 interface BudgetStore {
   budgets: BudgetGoal[];
-  fetchBudgets: () => Promise<void>;
   addBudget: (budget: Omit<BudgetGoal, 'id'>) => Promise<void>;
   updateBudget: (id: string, budget: Partial<BudgetGoal>) => Promise<void>;
   deleteBudget: (id: string) => Promise<void>;
@@ -28,14 +28,10 @@ export const useBudgetStore = create<BudgetStore>()(
 
       reset: () => set({ budgets: [] }),
 
-      fetchBudgets: async () => {
-        // Agora os dados já estão no cache (persistência do Zustand)
-      },
-
       addBudget: async (newBudget) => {
         const budget: BudgetGoal = {
           ...newBudget,
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
         };
         set((state) => ({
           budgets: [budget, ...state.budgets]

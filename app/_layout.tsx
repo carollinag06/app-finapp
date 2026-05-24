@@ -33,13 +33,9 @@ export default function RootLayout() {
   
   const { user, isAuthReady, checkAuth } = useAuthStore();
 
-  const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
   const resetTransactions = useTransactionStore((state) => state.reset);
-  const fetchBudgets = useBudgetStore((state) => state.fetchBudgets);
   const resetBudgets = useBudgetStore((state) => state.reset);
-  const fetchCards = useCardStore((state) => state.fetchCards);
   const resetCards = useCardStore((state) => state.reset);
-  const fetchCategories = useCategoryStore((state) => state.fetchCategories);
   const resetCategories = useCategoryStore((state) => state.reset);
 
   useEffect(() => {
@@ -47,13 +43,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      // Garantir que os dados locais sejam carregados/iniciados se necessário
-      fetchTransactions();
-      fetchBudgets();
-      fetchCards();
-      fetchCategories();
-    } else {
+    if (!user) {
       resetTransactions();
       resetBudgets();
       resetCards();

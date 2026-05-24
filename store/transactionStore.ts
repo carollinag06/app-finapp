@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
 // 1. Definimos o formato da nossa Transação
@@ -22,7 +23,6 @@ export interface Transaction {
 // 2. Definimos o que a nossa "Caixa" (Store) vai guardar e as funções que tem
 interface TransactionStore {
   transactions: Transaction[];
-  fetchTransactions: () => Promise<void>;
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   addTransactions: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
@@ -42,14 +42,10 @@ export const useTransactionStore = create<TransactionStore>()(
 
       reset: () => set({ transactions: [] }),
 
-      fetchTransactions: async () => {
-        // Agora os dados já estão no cache (persistência do Zustand)
-      },
-
       addTransaction: async (newTransaction) => {
         const transaction: Transaction = {
           ...newTransaction,
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
         };
         set((state) => ({
           transactions: [transaction, ...state.transactions]
@@ -59,7 +55,7 @@ export const useTransactionStore = create<TransactionStore>()(
       addTransactions: async (newTransactions) => {
         const addedTransactions = newTransactions.map(t => ({
           ...t,
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
         }));
         
         set((state) => ({

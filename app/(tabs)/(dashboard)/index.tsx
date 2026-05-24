@@ -2,12 +2,11 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format, isToday, isYesterday, parse, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Image,
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
@@ -16,10 +15,13 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAuthStore } from '../../store/authStore';
-import { BudgetGoal, useBudgetStore } from '../../store/budgetStore';
-import { CreditCard, useCardStore } from '../../store/cardStore';
-import { Transaction, useTransactionStore } from '../../store/transactionStore';
+import { useAuthStore } from '../../../store/authStore';
+import { BudgetGoal, useBudgetStore } from '../../../store/budgetStore';
+import { CreditCard, useCardStore } from '../../../store/cardStore';
+import { Transaction, useTransactionStore } from '../../../store/transactionStore';
+import { theme, MAX_WIDTH } from '../../../src/constants/theme';
+import { formatCurrency, getMonthName } from '../../../src/utils/format';
+import { styles } from './styles';
 
 // --- TIPAGEM ---
 
@@ -32,28 +34,6 @@ interface InvoiceAlert {
   year: number;
   type: 'closing' | 'due';
 }
-
-const MAX_WIDTH = 600; // Largura máxima para desktop
-
-const monthNames = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-];
-
-// --- CORES DO TEMA DARK ---
-const theme = {
-  bg: '#0F0F0F', // Um preto mais profundo
-  surface: '#1A1A1A',
-  surfaceLight: '#262626',
-  text: '#FFFFFF',
-  textMuted: '#999999',
-  primary: '#8A2BE2', // Roxo
-  primaryLight: '#A450FF',
-  success: '#00E676', // Verde vibrante
-  danger: '#FF5252',  // Vermelho vibrante
-  warning: '#FFD740', // Amarelo
-  border: '#2A2A2A'
-};
 
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Alimentação': 'restaurant',
@@ -108,7 +88,7 @@ const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
 
         <TouchableOpacity style={styles.monthDisplay} onPress={() => router.push('/analytics')}>
           <Ionicons name="calendar-outline" size={16} color={theme.primary} style={{ marginRight: 8 }} />
-          <Text style={styles.monthText}>{monthNames[currentMonth]} {currentYear}</Text>
+          <Text style={styles.monthText}>{getMonthName(currentMonth)} {currentYear}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -146,21 +126,21 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
       </View>
 
       <Text style={styles.mainCardValue}>
-        {mostrarSaldo ? `R$ ${saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••••'}
+        {mostrarSaldo ? formatCurrency(saldo) : 'R$ •••••'}
       </Text>
 
       {valorPendente > 0 && (
         <View style={styles.pendingContainer}>
           <Ionicons name="card-outline" size={14} color={theme.warning} />
           <Text style={styles.pendingText}>
-            Fatura Pendente: <Text style={{ fontWeight: 'bold' }}>R$ {valorPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
+            Fatura Pendente: <Text style={{ fontWeight: 'bold' }}>{formatCurrency(valorPendente)}</Text>
           </Text>
         </View>
       )}
 
       <View style={styles.progressContainer}>
         <View style={styles.progressLabelRow}>
-          <Text style={styles.progressLabel}>Uso do Orçamento (R$ {totalOrcado.toLocaleString('pt-BR')})</Text>
+          <Text style={styles.progressLabel}>Uso do Orçamento ({formatCurrency(totalOrcado)})</Text>
           <Text style={styles.progressValue}>{Math.round(percent)}%</Text>
         </View>
         <View style={styles.progressBar}>
@@ -173,13 +153,13 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
           style={styles.statItem}
           onPress={() => router.push({ pathname: '/analytics', params: { tab: 'receitas' } })}
         >
-          <View style={[styles.statIconCircle, { backgroundColor: 'rgba(0, 230, 118, 0.1)' }]}>
+          <View style={[styles.statIconCircle, { backgroundColor: theme.successOpacity }]}>
             <Ionicons name="trending-up" size={14} color={theme.success} />
           </View>
           <View>
             <Text style={styles.statLabel}>Entradas</Text>
             <Text style={[styles.statValue, { color: theme.success }]}>
-              {mostrarSaldo ? `R$ ${receitas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••'}
+              {mostrarSaldo ? formatCurrency(receitas) : 'R$ •••'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -190,13 +170,13 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
           style={styles.statItem}
           onPress={() => router.push({ pathname: '/analytics', params: { tab: 'despesas' } })}
         >
-          <View style={[styles.statIconCircle, { backgroundColor: 'rgba(255, 82, 82, 0.1)' }]}>
+          <View style={[styles.statIconCircle, { backgroundColor: theme.dangerOpacity }]}>
             <Ionicons name="trending-down" size={14} color={theme.danger} />
           </View>
           <View>
             <Text style={styles.statLabel}>Saídas</Text>
             <Text style={[styles.statValue, { color: theme.danger }]}>
-              {mostrarSaldo ? `R$ ${despesas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ •••'}
+              {mostrarSaldo ? formatCurrency(despesas) : 'R$ •••'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -293,7 +273,7 @@ const TransacoesRecentes = ({ transactions }: { transactions: Transaction[] }) =
               </View>
               <View style={styles.transactionValueContainer}>
                 <Text style={[styles.transactionValueText, { color: isIncome ? theme.success : theme.text }]}>
-                  {isIncome ? '+' : '-'} R$ {t.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  {isIncome ? '+' : '-'} {formatCurrency(t.value)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -375,7 +355,7 @@ const InvoiceAlerts = ({ alerts, onMarkAsPaid }: { alerts: InvoiceAlert[], onMar
             <View style={styles.alertValueRow}>
               <Text style={styles.alertValueLabel}>Valor da Fatura:</Text>
               <Text style={[styles.alertValueMain, { color: alertColor }]}>
-                R$ {alert.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatCurrency(alert.value)}
               </Text>
             </View>
 
@@ -416,7 +396,6 @@ export default function Dashboard() {
   const { cards, markInvoiceAsPaid, isInvoicePaid, paidInvoices } = useCardStore();
 
   // Alertas de Fatura
-  // Alertas de Fatura - Versão Corrigida para "Hoje"
   const invoiceAlerts = useMemo(() => {
     const now = new Date();
     // Zera ABSOLUTAMENTE horas, minutos, segundos e ms para comparação pura de dias
@@ -586,453 +565,3 @@ export default function Dashboard() {
     </View>
   );
 }
-
-// --- ESTILOS ---
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.bg,
-  },
-  centeredWrapper: {
-    flex: 1,
-    width: '100%',
-    maxWidth: MAX_WIDTH,
-    alignSelf: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 24,
-  },
-  // Header
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  greetingText: {
-    color: theme.text,
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  welcomeText: {
-    color: theme.textMuted,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  headerIconsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  iconCircleHeader: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-    overflow: 'hidden',
-  },
-  headerAvatar: {
-    width: '100%',
-    height: '100%',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.danger,
-    borderWidth: 1.5,
-    borderColor: theme.surface,
-  },
-  monthSelectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.surface,
-    borderRadius: 16,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  monthArrowBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  monthText: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  // Main Card
-  mainCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 28,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: theme.border,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-  },
-  mainCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  mainCardLabel: {
-    color: theme.textMuted,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  mainCardValue: {
-    color: theme.text,
-    fontSize: 34,
-    fontWeight: 'bold',
-    letterSpacing: -0.5,
-  },
-  pendingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 215, 64, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
-  pendingText: {
-    color: theme.warning,
-    fontSize: 13,
-  },
-  progressContainer: {
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  progressLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  progressLabel: {
-    color: theme.textMuted,
-    fontSize: 12,
-  },
-  progressValue: {
-    color: theme.text,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: theme.border,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: theme.border,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  statLabel: {
-    color: theme.textMuted,
-    fontSize: 11,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: theme.border,
-    marginHorizontal: 15,
-  },
-  // Shortcuts
-  shortcutsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  shortcutItem: {
-    alignItems: 'center',
-  },
-  shortcutIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  shortcutText: {
-    color: theme.text,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  // Health Card
-  healthCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  healthInfo: {
-    flex: 1,
-  },
-  healthTitle: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  healthDesc: {
-    color: theme.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  healthIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 230, 118, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 16,
-  },
-  // Sections
-  section: {
-    marginTop: 4,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    color: theme.text,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  seeAllText: {
-    color: theme.primaryLight,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  transactionsList: {
-    gap: 12,
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.surface,
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  transactionIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transactionInfo: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  transactionTitle: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  transactionSubtitle: {
-    color: theme.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  transactionValueContainer: {
-    alignItems: 'flex-end',
-  },
-  transactionValueText: {
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 30,
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  emptyStateText: {
-    color: theme.textMuted,
-    marginTop: 12,
-    fontSize: 14,
-  },
-  // Alertas de Fatura
-  alertCard: {
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  alertCardMini: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-    gap: 10,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  alertIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertIconCircleSmall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  alertTitleMini: {
-    flex: 1,
-    fontSize: 13,
-    color: theme.text,
-  },
-  alertCardName: {
-    fontSize: 12,
-    color: theme.textMuted,
-    marginTop: 1,
-  },
-  alertSubtitle: {
-    fontSize: 12,
-    color: theme.textMuted,
-    marginTop: 2,
-  },
-  alertValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
-  },
-  alertValueLabel: {
-    fontSize: 12,
-    color: theme.textMuted,
-  },
-  alertValueMain: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  alertTimeTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 8,
-  },
-  alertTimeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  alertFooterCompact: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 15,
-  },
-  alertActionLink: {
-    paddingVertical: 4,
-  },
-  alertActionLinkText: {
-    color: theme.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  alertActionBtnCompact: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  alertPayButtonAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  alertActionBtnText: {
-    color: '#000',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-});

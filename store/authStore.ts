@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
 interface User {
@@ -42,7 +43,7 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         const newUser: User = {
-          id: Math.random().toString(36).substring(2, 9),
+          id: Crypto.randomUUID(),
           name,
           email,
           password
