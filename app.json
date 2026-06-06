@@ -21,7 +21,7 @@
       "package": "com.caroll123456.FinancasApp"
     },
     "web": {
-      "output": "static",
+      "bundler": "metro",
       "favicon": "./assets/images/logo.jpeg"
     },
     "plugins": [
@@ -38,11 +38,12 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-asset"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": false,
+      "reactCompiler": false
     },
     "extra": {
       "router": {},

@@ -1,85 +1,116 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { Stack, router, useRootNavigationState, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Impede que a Splash Screen feche automaticamente antes das fontes carregarem
+SplashScreen.preventAutoHideAsync();
+
+// Importação das stores para gerenciar autenticação e dados ao iniciar o app
 import { useAuthStore } from '../store/authStore';
-import { useBudgetStore } from '../store/budgetStore';
 import { useCardStore } from '../store/cardStore';
 import { useCategoryStore } from '../store/categoryStore';
 import { useTransactionStore } from '../store/transactionStore';
 
-// Polyfill para Trusted Types no ambiente Web Preview (Trae)
-if (Platform.OS === 'web' && typeof window !== 'undefined' && 'trustedTypes' in window) {
-  try {
-    // @ts-ignore
-    if (!window.trustedTypes.defaultPolicy) {
-      // @ts-ignore
-      window.trustedTypes.createPolicy('default', {
-        createHTML: (string: string) => string,
-        createScript: (string: string) => string,
-        createScriptURL: (string: string) => string,
-      });
-    }
-  } catch {
-    // Falha silenciosa se não puder criar política (ex: já existe ou restrição de CSP)
-  }
-}
-
+// ROOT LAYOUT (O "Pai" de todos os componentes) - Sincronizado com rotas atuais
 export default function RootLayout() {
-  const segments = useSegments();
-  const rootNavigationState = useRootNavigationState();
-  
+  const segments = useSegments(); // Obtém a rota atual em partes (Ex: ['(tabs)', 'index'])
+  const rootNavigationState = useRootNavigationState(); // Estado da navegação do sistema
+
+  // Carregamento de fontes
+  const [loaded, error] = useFonts({
+    ...Ionicons.font,
+  });
+
+  // Estado global de autenticação
   const { user, isAuthReady, checkAuth } = useAuthStore();
 
+  // Funções para limpar os dados locais (usadas quando o usuário faz logout)
   const resetTransactions = useTransactionStore((state) => state.reset);
-  const resetBudgets = useBudgetStore((state) => state.reset);
   const resetCards = useCardStore((state) => state.reset);
   const resetCategories = useCategoryStore((state) => state.reset);
 
+  // EFEITO: Esconde a Splash Screen quando as fontes e o auth estiverem prontos
+  useEffect(() => {
+    if (loaded || error) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded, error]);
+
+  // EFEITO: Verifica se o usuário já está logado assim que o app abre
   useEffect(() => {
     checkAuth();
   }, []);
 
+  // EFEITO: Se o usuário deslogar, limpa todos os dados sensíveis do estado
   useEffect(() => {
     if (!user) {
       resetTransactions();
-      resetBudgets();
       resetCards();
       resetCategories();
     }
   }, [user]);
 
+  /**
+   * PROTEÇÃO DE ROTAS (Middleware de Autenticação)
+   * Redireciona o usuário baseado no estado de login:
+   * - Se NÃO logado e tentar acessar áreas restritas -> vai para 'Welcome'
+   * - Se logado e estiver em áreas de login/welcome -> vai para o Dashboard '(tabs)'
+   */
   useEffect(() => {
-    if (!isAuthReady || !rootNavigationState?.key) return;
+    if (!isAuthReady || !rootNavigationState?.key || !loaded) return;
 
-    const inAuthGroup = segments[0] === '(tabs)' || segments[0] === 'new-transaction' || segments[0] === 'new-card' || segments[0] === 'profile' || segments[0] === 'categories';
+    // @ts-ignore - Os segmentos podem variar e o TS é muito restrito aqui
+    const currentSegments = segments as string[];
+    const firstSegment = currentSegments[0];
 
-    if (!user && inAuthGroup) {
-      setTimeout(() => {
-        router.replace('/welcome');
-      }, 0);
-    } else if (user && !inAuthGroup) {
-      setTimeout(() => {
-        router.replace('/(tabs)');
-      }, 0);
+    // Define quais rotas são protegidas
+    const inAuthGroup = firstSegment === '(tabs)' || 
+                       firstSegment === 'nova-transacao' || 
+                       firstSegment === 'novo-cartao' || 
+                       firstSegment === 'perfil' || 
+                       firstSegment === 'categorias' ||
+                       firstSegment === 'nova-categoria' ||
+                       firstSegment === 'cartoes';
+    
+    // Verifica se está na rota raiz
+    const isRoot = currentSegments.length === 0 || firstSegment === 'index' || firstSegment === '';
+
+    if (!user && (inAuthGroup || isRoot)) {
+      // Usuário não logado tentando acessar o app ou na raiz -> Redireciona para Welcome
+      router.replace('/welcome');
+    } else if (user && (!inAuthGroup || isRoot)) {
+      // Usuário logado tentando acessar telas de welcome/login ou na raiz -> Redireciona para o App
+      router.replace('/(tabs)');
     }
-  }, [user, isAuthReady, segments, rootNavigationState?.key]);
+  }, [user, isAuthReady, segments, rootNavigationState?.key, loaded]);
 
-  if (!isAuthReady) return null;
+  // Enquanto a autenticação ou as fontes estão sendo verificadas, não renderiza nada
+  if (!isAuthReady || (!loaded && !error)) return null;
 
   return (
     <SafeAreaProvider>
+      {/* GestureHandlerRootView: Necessário para animações e gestos (como deslizar para excluir) */}
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0F0F0F' }}>
         <StatusBar style="light" />
+        
+        {/* Stack: Gerencia a pilha de telas do app */}
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0F0F0F' } }}>
-          <Stack.Screen name="welcome" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="cadastro" />
+          {/* Telas Públicas */}
+          <Stack.Screen name="welcome/index" />
+          <Stack.Screen name="login/index" />
+          <Stack.Screen name="cadastro/index" />
+          
+          {/* Telas Protegidas (Dashboard) */}
           <Stack.Screen name="(tabs)" />
+          
+          {/* Modais: Telas que abrem "por cima" das outras */}
           <Stack.Screen
-            name="new-transaction"
+            name="nova-transacao/index"
             options={{
               presentation: 'modal',
               headerShown: true,
@@ -89,21 +120,35 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
-            name="new-card"
+            name="novo-cartao/index"
             options={{
               presentation: 'modal',
               headerShown: false,
             }}
           />
           <Stack.Screen
-            name="profile"
+            name="perfil/index"
             options={{
               presentation: 'modal',
               headerShown: false,
             }}
           />
           <Stack.Screen
-            name="categories"
+            name="categorias/index"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="nova-categoria/index"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="cartoes/index"
             options={{
               presentation: 'modal',
               headerShown: false,

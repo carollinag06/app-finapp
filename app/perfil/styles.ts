@@ -1,0 +1,153 @@
+import { StyleSheet } from 'react-native';
+import { theme, MAX_WIDTH } from '../../src/constants/theme';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.bg,
+  },
+  centeredWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_WIDTH,
+    alignSelf: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.text,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginVertical: 32,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  avatarCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.primary,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: theme.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: theme.bg,
+  },
+  userEmail: {
+    fontSize: 16,
+    color: theme.textMuted,
+  },
+  formContainer: {
+    gap: 24,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+    marginLeft: 4,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.border,
+    height: 56,
+    paddingHorizontal: 16,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    color: theme.text,
+    fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: theme.primary,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.danger,
+    marginTop: 8,
+  },
+  logoutButtonText: {
+    color: theme.danger,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

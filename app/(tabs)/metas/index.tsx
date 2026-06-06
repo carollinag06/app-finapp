@@ -20,7 +20,7 @@ const Header = () => (
       <Text style={styles.headerSubtitle}>Minhas</Text>
       <Text style={styles.headerTitle}>Metas</Text>
     </View>
-    <TouchableOpacity style={styles.addGoalButton} onPress={() => router.push('/new-budget')}>
+    <TouchableOpacity style={styles.addGoalButton} onPress={() => router.push('/nova-categoria/index' as any)}>
       <Ionicons name="add" size={24} color="#FFF" />
     </TouchableOpacity>
   </View>
@@ -60,7 +60,7 @@ const BudgetCard = ({ goal, spent }: { goal: BudgetGoal; spent: number }) => {
           </View>
           <Text style={styles.cardAmount}>R$ {spent.toLocaleString('pt-BR')} / R$ {goal.amount.toLocaleString('pt-BR')}</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push({ pathname: '/new-budget', params: { id: goal.id } })}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/nova-categoria/index' as any, params: { id: goal.id } })}>
           <Feather name="edit-2" size={16} color={theme.textMuted} />
         </TouchableOpacity>
       </View>
@@ -246,7 +246,7 @@ export default function MetasScreen() {
                     <TouchableOpacity
                       key={idx}
                       style={styles.suggestionCard}
-                      onPress={() => router.push({ pathname: '/new-budget', params: { category: s.category } })}
+                      onPress={() => router.push({ pathname: '/nova-categoria/index' as any, params: { category: s.category } })}
                     >
                       <View style={styles.suggestionInfo}>
                         <Ionicons name="bulb-outline" size={20} color={theme.warning} />

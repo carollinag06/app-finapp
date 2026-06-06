@@ -3,24 +3,30 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
-// 1. Definimos o formato da nossa Transação
+/**
+ * INTERFACE: Transaction
+ * Define a estrutura completa de uma movimentação financeira (Entrada ou Saída).
+ */
 export interface Transaction {
   id: string;
   description: string;
   value: number;
-  type: 'expense' | 'income'; // Despesa ou Receita
-  category: string;
-  date: string;
+  type: 'expense' | 'income';      // Define se é uma saída (despesa) ou entrada (receita)
+  category: string;                // Nome da categoria associada
+  date: string;                    // Data em formato ISO ou DD/MM/YYYY
   paymentMethod?: 'credit' | 'debit' | 'pix';
   recurrence?: 'fixed' | 'variable' | 'installment';
-  installmentsCount?: number;
-  installmentNumber?: number;
-  installmentGroupId?: string;
-  cardId?: string;
+  installmentsCount?: number;      // Número total de parcelas (se houver)
+  installmentNumber?: number;      // Número da parcela atual (ex: 1 de 12)
+  installmentGroupId?: string;     // ID que agrupa todas as parcelas de uma mesma compra
+  cardId?: string;                 // ID do cartão utilizado (se for crédito)
   user_id?: string;
 }
 
-// 2. Definimos o que a nossa "Caixa" (Store) vai guardar e as funções que tem
+/**
+ * INTERFACE: TransactionStore
+ * Estado e ações para o gerenciamento de todas as transações do app.
+ */
 interface TransactionStore {
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
@@ -32,26 +38,45 @@ interface TransactionStore {
   reset: () => void;
 }
 
-// 3. Criamos o Store com o Zustand e persistimos os dados com AsyncStorage
+/**
+ * STORE: useTransactionStore (Zustand)
+ * Centraliza o histórico financeiro do usuário com persistência automática.
+ */
 export const useTransactionStore = create<TransactionStore>()(
   persist(
     (set, get) => ({
       transactions: [],
 
+      /**
+       * AÇÃO: setTransactions
+       * Atualiza a lista completa (usado para migrações ou cargas em lote).
+       */
       setTransactions: (transactions) => set({ transactions }),
 
+      /**
+       * AÇÃO: reset
+       * Limpa todo o histórico de transações.
+       */
       reset: () => set({ transactions: [] }),
 
+      /**
+       * AÇÃO: addTransaction
+       * Adiciona um novo lançamento único.
+       */
       addTransaction: async (newTransaction) => {
         const transaction: Transaction = {
           ...newTransaction,
           id: Crypto.randomUUID(),
         };
         set((state) => ({
-          transactions: [transaction, ...state.transactions]
+          transactions: [transaction, ...state.transactions] // Adiciona no início da lista
         }));
       },
 
+      /**
+       * AÇÃO: addTransactions
+       * Adiciona múltiplas transações de uma vez (usado no parcelamento).
+       */
       addTransactions: async (newTransactions) => {
         const addedTransactions = newTransactions.map(t => ({
           ...t,
@@ -63,6 +88,10 @@ export const useTransactionStore = create<TransactionStore>()(
         }));
       },
 
+      /**
+       * AÇÃO: updateTransaction
+       * Edita uma transação existente.
+       */
       updateTransaction: async (id, updatedTransaction) => {
         set((state) => ({
           transactions: state.transactions.map((t) => 
@@ -71,12 +100,20 @@ export const useTransactionStore = create<TransactionStore>()(
         }));
       },
 
+      /**
+       * AÇÃO: deleteTransaction
+       * Exclui um único lançamento.
+       */
       deleteTransaction: async (id) => {
         set((state) => ({
           transactions: state.transactions.filter((t) => t.id !== id)
         }));
       },
 
+      /**
+       * AÇÃO: deleteTransactionsByGroupId
+       * Exclui todas as parcelas de um grupo de uma só vez.
+       */
       deleteTransactionsByGroupId: async (groupId) => {
         set((state) => ({
           transactions: state.transactions.filter((t) => t.installmentGroupId !== groupId)

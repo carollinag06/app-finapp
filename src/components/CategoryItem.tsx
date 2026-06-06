@@ -10,12 +10,18 @@ interface CategoryItemProps {
   onPress: (id: string) => void;
 }
 
+/**
+ * COMPONENTE: CategoryItem
+ * Renderiza um botão quadrado para seleção de categoria.
+ * Utiliza 'memo' para evitar re-renderizações desnecessárias durante a digitação de valores.
+ */
 export const CategoryItem = memo(({ cat, isSelected, onPress }: CategoryItemProps) => {
   const catColor = cat.color || theme.textMuted;
   return (
     <TouchableOpacity
       style={[
         styles.categoryCard,
+        // Aplica destaque visual (cor de fundo e borda) quando selecionado
         isSelected && { backgroundColor: `${catColor}20`, borderColor: catColor }
       ]}
       onPress={() => onPress(cat.id)}
@@ -37,23 +43,22 @@ CategoryItem.displayName = 'CategoryItem';
 
 const styles = StyleSheet.create({
   categoryCard: {
-    width: '23%',
-    aspectRatio: 1,
+    width: 84,
+    height: 84,
     backgroundColor: theme.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: theme.border,
   },
   categoryIcon: {
     marginBottom: 6,
   },
   categoryText: {
     color: theme.textMuted,
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
     textAlign: 'center',
   },
 });

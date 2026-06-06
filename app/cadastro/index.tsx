@@ -13,45 +13,61 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Importação da store de autenticação para realizar o cadastro
 import { useAuthStore } from '../../store/authStore';
 import { theme } from '../../src/constants/theme';
 import { styles } from './styles';
 
+/**
+ * TELA DE CADASTRO (RegisterScreen)
+ * Permite que novos usuários criem uma conta fornecendo Nome, Email e Senha.
+ */
 export default function RegisterScreen() {
+  // Estados para capturar os dados do formulário
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Controla o estado de carregamento do botão
 
+  // Estados para alternar a visibilidade da senha (olhinho)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const insets = useSafeAreaInsets();
-  const { register } = useAuthStore();
+  
+  const insets = useSafeAreaInsets(); // Ajuste de área segura para dispositivos mobile
+  const { register } = useAuthStore(); // Função de registro da store global
 
-  // Refs para navegação entre inputs
+  // Referências (Refs) para permitir navegação automática entre os campos do teclado
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
 
+  /**
+   * FUNÇÃO: Lógica de Registro
+   * Valida os campos e chama a store para salvar o novo usuário.
+   */
   const handleRegister = useCallback(async () => {
-    // Validações básicas
+    // 1. Validação: Campos Vazios
     if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       Alert.alert("Erro", "Por favor, preencha todos os campos.");
       return;
     }
 
+    // 2. Validação: Formato de Email
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) {
       Alert.alert("Erro", "Por favor, insira um e-mail válido.");
       return;
     }
 
+    // 3. Validação: Tamanho da Senha
     if (password.length < 6) {
       Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
+    // 4. Validação: Confirmação de Senha
     if (password !== confirmPassword) {
       Alert.alert("Erro", "As senhas não coincidem.");
       return;
@@ -60,8 +76,9 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
+      // Chama a função de registro da store global
       await register(name.trim(), email.trim(), password);
-      // O RootLayout redirecionará para /(tabs) automaticamente
+      // Nota: O redirecionamento é feito automaticamente pelo RootLayout ao detectar o usuário logado
     } catch (error: any) {
       console.error("Erro no Cadastro:", error);
       Alert.alert("Erro no Cadastro", "Não foi possível realizar o cadastro no momento.");
@@ -72,6 +89,7 @@ export default function RegisterScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
+        {/* KeyboardAvoidingView: Ajusta a tela automaticamente quando o teclado sobe no mobile */}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
@@ -80,7 +98,7 @@ export default function RegisterScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* --- HEADER --- */}
+            {/* --- CABEÇALHO --- */}
             <View style={styles.headerContainer}>
               <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading}>
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
@@ -92,10 +110,10 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            {/* --- FORMULÁRIO --- */}
+            {/* --- FORMULÁRIO DE DADOS --- */}
             <View style={styles.formContainer}>
 
-              {/* Input de Nome */}
+              {/* CAMPO: Nome */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome completo</Text>
                 <View style={styles.inputContainer}>
@@ -107,7 +125,7 @@ export default function RegisterScreen() {
                     autoCapitalize="words"
                     autoCorrect={false}
                     returnKeyType="next"
-                    onSubmitEditing={() => emailRef.current?.focus()}
+                    onSubmitEditing={() => emailRef.current?.focus()} // Pula para email ao clicar em "próximo"
                     blurOnSubmit={false}
                     value={name}
                     onChangeText={setName}
@@ -116,7 +134,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Input de E-mail */}
+              {/* CAMPO: Email */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>E-mail</Text>
                 <View style={styles.inputContainer}>
@@ -130,7 +148,7 @@ export default function RegisterScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
-                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    onSubmitEditing={() => passwordRef.current?.focus()} // Pula para senha
                     blurOnSubmit={false}
                     value={email}
                     onChangeText={setEmail}
@@ -139,7 +157,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Input de Senha */}
+              {/* CAMPO: Senha */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Senha</Text>
                 <View style={styles.inputContainer}>
@@ -149,9 +167,9 @@ export default function RegisterScreen() {
                     style={styles.input}
                     placeholder="Crie uma senha forte"
                     placeholderTextColor={theme.textMuted}
-                    secureTextEntry={!showPassword}
+                    secureTextEntry={!showPassword} // Oculta caracteres
                     returnKeyType="next"
-                    onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+                    onSubmitEditing={() => confirmPasswordRef.current?.focus()} // Pula para confirmação
                     blurOnSubmit={false}
                     value={password}
                     onChangeText={setPassword}
@@ -167,7 +185,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Input de Confirmar Senha */}
+              {/* CAMPO: Confirmação de Senha */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Confirmar Senha</Text>
                 <View style={styles.inputContainer}>
@@ -179,7 +197,7 @@ export default function RegisterScreen() {
                     placeholderTextColor={theme.textMuted}
                     secureTextEntry={!showConfirmPassword}
                     returnKeyType="done"
-                    onSubmitEditing={handleRegister}
+                    onSubmitEditing={handleRegister} // Tenta cadastrar ao clicar em "pronto"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     editable={!loading}
@@ -194,7 +212,7 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Botão Cadastrar */}
+              {/* BOTÃO DE AÇÃO: Cadastrar */}
               <TouchableOpacity
                 style={[styles.registerButton, loading && styles.buttonDisabled]}
                 activeOpacity={0.8}
@@ -208,13 +226,13 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* --- RODAPÉ / LOGIN --- */}
+            {/* --- RODAPÉ: Redirecionamento para Login --- */}
             <View style={styles.footerContainer}>
               <Text style={styles.footerText}>
                 Já tem uma conta?{' '}
                 <Text
                   style={styles.loginText}
-                  onPress={() => router.push('/login')}
+                  onPress={() => router.push('/login/index' as any)}
                 >
                   Entrar
                 </Text>
