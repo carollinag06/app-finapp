@@ -123,14 +123,23 @@ export default function MoreScreen() {
     {
       title: 'Minha Conta',
       items: [
+<<<<<<< HEAD
         { id: 'profile', title: 'Meu Perfil', subtitle: 'Dados pessoais e segurança', icon: 'person-outline', color: theme.primary, onPress: () => router.push('/perfil/index' as any) },
         { id: 'cards', title: 'Cartões de Crédito', subtitle: 'Limites e faturas', icon: 'card-outline', color: '#2196F3', onPress: () => router.push('/cartoes/index' as any) },
+=======
+        { id: 'profile', title: 'Meu Perfil', subtitle: 'Dados pessoais e segurança', icon: 'person-outline', color: theme.primary, onPress: () => router.push('/profile') },
+        { id: 'cards', title: 'Cartões de Crédito', subtitle: 'Limites e faturas', icon: 'card-outline', color: '#2196F3', onPress: () => router.push('/cards') },
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
       ]
     },
     {
       title: 'Planejamento',
       items: [
+<<<<<<< HEAD
         { id: 'categories', title: 'Categorias', subtitle: 'Personalizar gastos e receitas', icon: 'pricetag-outline', color: '#FFEB3B', onPress: () => router.push('/categorias/index' as any) },
+=======
+        { id: 'categories', title: 'Categorias', subtitle: 'Personalizar gastos e receitas', icon: 'pricetag-outline', color: '#FFEB3B', onPress: () => router.push('/categories') },
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
       ]
     },
     {
@@ -161,7 +170,11 @@ export default function MoreScreen() {
         >
           {/* Card do Perfil Rápido: Exibe nome e email no topo do menu */}
           <View>
+<<<<<<< HEAD
             <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/perfil/index' as any)}>
+=======
+            <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/profile')}>
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
               <View style={styles.avatar}>
                 <Ionicons name="person" size={32} color={theme.text} />
               </View>

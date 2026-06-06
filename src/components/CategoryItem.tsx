@@ -43,8 +43,13 @@ CategoryItem.displayName = 'CategoryItem';
 
 const styles = StyleSheet.create({
   categoryCard: {
+<<<<<<< HEAD
     width: 84,
     height: 84,
+=======
+    width: '23%', // Ajuste para caber aproximadamente 4 itens por linha
+    aspectRatio: 1, // Mantém o formato quadrado
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
     backgroundColor: theme.surface,
     borderRadius: 20,
     justifyContent: 'center',

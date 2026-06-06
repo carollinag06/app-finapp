@@ -119,7 +119,11 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarButton: (props: BottomTabBarButtonProps) => (
+<<<<<<< HEAD
             <CustomTabBarButton {...props} onPress={() => router.push('/nova-transacao' as any)} />
+=======
+            <CustomTabBarButton {...props} onPress={() => router.push('/new-transaction')} />
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
           ),
         }}
       />
@@ -137,7 +141,11 @@ export default function TabLayout() {
 
       {/* ABA 4: Mais Opções (Menu de Configurações) */}
       <Tabs.Screen
+<<<<<<< HEAD
         name="mais/index"
+=======
+        name="mais"
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
         options={{
           title: 'Mais',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (

@@ -24,12 +24,18 @@ export interface CreditCard {
  */
 interface CardStore {
   cards: CreditCard[];
+<<<<<<< HEAD
   paidInvoices: string[]; // Formato: "cardId-month-year"
   addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
   updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
   deleteCard: (id: string) => Promise<void>;
   markInvoiceAsPaid: (cardId: string, month: number, year: number) => void;
   isInvoicePaid: (cardId: string, month: number, year: number) => boolean;
+=======
+  addCard: (card: Omit<CreditCard, 'id'>) => Promise<void>;
+  updateCard: (id: string, card: Partial<CreditCard>) => Promise<void>;
+  deleteCard: (id: string) => Promise<void>;
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
   reset: () => void; // Limpa todos os cartões (usado no logout)
 }
 
@@ -41,12 +47,12 @@ export const useCardStore = create<CardStore>()(
   persist(
     (set, get) => ({
       cards: [],
-      paidInvoices: [],
 
       /**
        * AÇÃO: reset
        * Retorna o estado da lista para vazio.
        */
+<<<<<<< HEAD
       reset: () => set({ cards: [], paidInvoices: [] }),
 
       /**
@@ -70,6 +76,9 @@ export const useCardStore = create<CardStore>()(
         const key = `${cardId}-${month}-${year}`;
         return get().paidInvoices.includes(key);
       },
+=======
+      reset: () => set({ cards: [] }),
+>>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
 
       /**
        * AÇÃO: addCard
