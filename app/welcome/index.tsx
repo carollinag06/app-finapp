@@ -13,18 +13,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../src/constants/theme';
 import { styles } from './styles';
 
+/**
+ * TELA DE BOAS-VINDAS (WelcomeScreen)
+ * A primeira tela exibida para usuários não autenticados.
+ * Apresenta o app e oferece opções para entrar ou se cadastrar.
+ */
 export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
+      {/* Define a cor dos ícones da barra de status (hora, bateria) como branco */}
       <StatusBar barStyle="light-content" />
+      
+      {/* Gradiente de fundo para um visual moderno e profundo */}
       <LinearGradient
         colors={[theme.bg, '#1A1A1F', theme.bg]}
         style={styles.gradient}
       >
         <SafeAreaView style={styles.content}>
-          {/* --- ILUSTRAÇÃO / LOGO --- */}
+          {/* --- SEÇÃO SUPERIOR: ILUSTRAÇÃO / LOGO --- */}
           <View style={styles.headerContainer}>
             <View style={styles.logoWrapper}>
+              {/* Logo do aplicativo centralizada */}
               <Image
                 source={require('../../assets/images/logo.jpeg')}
                 style={styles.logoImage}
@@ -38,9 +47,9 @@ export default function WelcomeScreen() {
             </Text>
           </View>
 
-          {/* --- BOTÕES DE AÇÃO --- */}
+          {/* --- SEÇÃO INFERIOR: BOTÕES DE AÇÃO --- */}
           <View style={styles.actionsContainer}>
-            {/* Botão E-mail */}
+            {/* Botão principal de login via e-mail */}
             <TouchableOpacity
               style={styles.emailButton}
               onPress={() => router.push('/login')}
@@ -50,7 +59,7 @@ export default function WelcomeScreen() {
               <Text style={styles.emailButtonText}>Entrar com E-mail</Text>
             </TouchableOpacity>
 
-            {/* Link de Cadastro */}
+            {/* Link secundário para quem ainda não tem conta */}
             <View style={styles.footer}>
               <Text style={styles.footerText}>Não tem uma conta? </Text>
               <TouchableOpacity onPress={() => router.push('/cadastro')}>

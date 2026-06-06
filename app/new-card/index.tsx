@@ -14,15 +14,19 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Importação da store de cartões para gerenciar a persistência
 import { useCardStore } from '../../store/cardStore';
 import { theme } from '../../src/constants/theme';
 import { styles } from './styles';
 
+// Interface para definir a estrutura de cores do cartão (cor sólida + gradiente)
 interface CardColor {
   main: string;
   grad: string[];
 }
 
+// Opções de cores disponíveis para o usuário personalizar seu cartão visualmente
 const cardColors: CardColor[] = [
   { main: '#8A2BE2', grad: ['#8A2BE2', '#4B0082'] }, // Roxo
   { main: '#2196F3', grad: ['#2196F3', '#1565C0'] }, // Azul
@@ -32,6 +36,7 @@ const cardColors: CardColor[] = [
   { main: '#1C1C1E', grad: ['#2C2C2E', '#000000'] }, // Preto
 ];
 
+// Marcas/Bandeiras de cartões suportadas para exibição de ícones
 const cardBrands = [
   { name: 'Visa', icon: 'credit-card-outline' },
   { name: 'Mastercard', icon: 'credit-card-chip-outline' },
@@ -39,14 +44,19 @@ const cardBrands = [
   { name: 'Outro', icon: 'card-outline' },
 ];
 
+/**
+ * TELA: Cadastro/Edição de Cartão (NewCardScreen)
+ * Apresentada como um Modal. Permite configurar as propriedades de um cartão de crédito.
+ */
 export default function NewCardScreen() {
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams(); // Captura parâmetros da URL (ex: id para edição)
   const editId = params.id as string;
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
 
+  // Estados do formulário
   const [name, setName] = useState('');
-  const [limit, setLimit] = useState(''); // Raw numbers string
+  const [limit, setLimit] = useState(''); // Armazena o valor bruto em centavos (ex: "1000" para R$ 10,00)
   const [closingDay, setClosingDay] = useState('1');
   const [dueDay, setDueDay] = useState('10');
   const [selectedColor, setSelectedColor] = useState(cardColors[0]);
@@ -55,6 +65,7 @@ export default function NewCardScreen() {
 
   const { cards, addCard, updateCard, deleteCard } = useCardStore();
 
+  // LÓGICA: Formata o valor bruto do limite para exibição em Real (BRL)
   const displayLimit = useMemo(() => {
     if (!limit) return '0,00';
     const numberValue = Number(limit) / 100;
@@ -64,6 +75,7 @@ export default function NewCardScreen() {
     });
   }, [limit]);
 
+  // EFEITO: Se estiver em modo edição, carrega os dados do cartão existente
   useEffect(() => {
     if (editId) {
       const card = cards.find(c => c.id === editId);
@@ -79,6 +91,10 @@ export default function NewCardScreen() {
     }
   }, [editId, cards]);
 
+  /**
+   * FUNÇÃO: Salvar Cartão
+   * Realiza validações e chama addCard ou updateCard dependendo do modo.
+   */
   const handleSave = useCallback(async () => {
     const numericLimit = Number(limit) / 100;
 
@@ -118,6 +134,9 @@ export default function NewCardScreen() {
     }
   }, [name, limit, closingDay, dueDay, selectedColor, selectedBrand, editId, addCard, updateCard]);
 
+  /**
+   * FUNÇÃO: Excluir Cartão (Modo Edição)
+   */
   const handleDelete = () => {
     Alert.alert("Excluir Cartão", "Deseja realmente excluir este cartão?", [
       { text: "Cancelar", style: "cancel" },
@@ -139,6 +158,10 @@ export default function NewCardScreen() {
     ]);
   };
 
+  /**
+   * FUNÇÃO: Máscara de Moeda
+   * Remove caracteres não numéricos e atualiza o estado do limite.
+   */
   const formatLimit = (text: string) => {
     const cleanValue = text.replace(/\D/g, '');
     if (!cleanValue || cleanValue === '0') {
@@ -160,7 +183,7 @@ export default function NewCardScreen() {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
 
-        {/* Header */}
+        {/* --- HEADER DO MODAL --- */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
             <Ionicons name="close" size={24} color={theme.text} />
@@ -175,14 +198,15 @@ export default function NewCardScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-          {/* Card Preview Visual Avançado */}
+          {/* --- CARD PREVIEW VISUAL --- 
+              Exibe em tempo real como o cartão ficará com as cores e dados escolhidos.
+          */}
           <LinearGradient
             colors={selectedColor.grad as [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cardPreview}
           >
-            {/* Detalhes de textura do cartão */}
             <View style={styles.cardOverlay}>
               <View style={styles.cardPreviewTop}>
                 <View style={styles.cardChip}>
@@ -221,7 +245,7 @@ export default function NewCardScreen() {
             </View>
           </LinearGradient>
 
-          {/* Nome do Cartão */}
+          {/* INPUT: Nome/Apelido */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Apelido do Cartão</Text>
             <View style={styles.inputContainer}>
@@ -237,7 +261,7 @@ export default function NewCardScreen() {
             </View>
           </View>
 
-          {/* Limite (Calculator Style) */}
+          {/* INPUT: Limite (Estilo calculadora, com input invisível por trás) */}
           <TouchableOpacity
             style={styles.limitContainer}
             onPress={() => inputRef.current?.focus()}
@@ -267,7 +291,7 @@ export default function NewCardScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Datas */}
+          {/* INPUTS: Datas de Fechamento e Vencimento */}
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1, marginRight: 12 }]}>
               <Text style={styles.label}>Fechamento</Text>
@@ -301,7 +325,7 @@ export default function NewCardScreen() {
             </View>
           </View>
 
-          {/* Bandeira / Tipo */}
+          {/* SELEÇÃO: Bandeira do Cartão */}
           <View style={styles.section}>
             <Text style={styles.label}>Bandeira do Cartão</Text>
             <View style={styles.brandGrid}>
@@ -330,7 +354,7 @@ export default function NewCardScreen() {
             </View>
           </View>
 
-          {/* Cor do Cartão */}
+          {/* SELEÇÃO: Estilo e Cor */}
           <View style={styles.section}>
             <Text style={styles.label}>Estilo e Cor</Text>
             <View style={styles.colorGrid}>
@@ -354,6 +378,7 @@ export default function NewCardScreen() {
 
         </ScrollView>
 
+        {/* RODAPÉ: Botão de Ação Principal */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: selectedColor.main }, loading && styles.buttonDisabled]}

@@ -14,28 +14,36 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Importação das stores para gerenciar dados do usuário e resetar o app ao sair
 import { useAuthStore } from '../../store/authStore';
-import { useBudgetStore } from '../../store/budgetStore';
 import { useCardStore } from '../../store/cardStore';
 import { useCategoryStore } from '../../store/categoryStore';
 import { useTransactionStore } from '../../store/transactionStore';
 import { theme } from '../../src/constants/theme';
 import { styles } from './styles';
 
+/**
+ * TELA: Perfil do Usuário (ProfileScreen)
+ * Permite visualizar e editar dados pessoais, gerenciar categorias e deslogar.
+ */
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  
+  // Obtém dados e funções da store global de autenticação
   const { user, logout, updateProfile } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Funções para resetar o estado global de todas as stores (limpeza pós-logout)
   const resetTransactions = useTransactionStore(state => state.reset);
-  const resetBudgets = useBudgetStore(state => state.reset);
   const resetCards = useCardStore(state => state.reset);
   const resetCategories = useCategoryStore((state) => state.reset);
 
+  // EFEITO: Sincroniza os campos locais com os dados do usuário na store
   useEffect(() => {
     if (user) {
       setName(user.name || '');
@@ -43,10 +51,15 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
+  // Função simulada para troca de foto (Upload não implementado nesta versão)
   const pickImage = async () => {
     Alert.alert("Aviso", "Upload de avatar não disponível nesta versão.");
   };
 
+  /**
+   * FUNÇÃO: Atualizar Perfil
+   * Valida o nome e chama a store para persistir a mudança.
+   */
   const handleUpdateProfile = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert("Erro", "O nome não pode estar vazio.");
@@ -63,8 +76,12 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [name]);
+  }, [name, updateProfile]);
 
+  /**
+   * FUNÇÃO: Sair da Conta (Logout)
+   * Confirma a ação e limpa todas as stores para garantir privacidade dos dados.
+   */
   const handleLogout = async () => {
     Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
       { text: "Cancelar", style: "cancel" },
@@ -75,12 +92,11 @@ export default function ProfileScreen() {
           try {
             await logout();
             resetTransactions();
-            resetBudgets();
             resetCards();
             resetCategories();
           } catch (error) {
             console.error("Erro ao fazer logout:", error);
-            Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair. Tente novamente.");
+            Alert.alert("Erro ao Sair", "Ocorreu um problema ao tentar sair.");
           }
         }
       }
@@ -90,7 +106,8 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.centeredWrapper}>
-        {/* HEADER */}
+        
+        {/* --- HEADER --- */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()} disabled={loading || uploading}>
             <Ionicons name="arrow-back" size={24} color={theme.text} />
@@ -99,11 +116,9 @@ export default function ProfileScreen() {
           <View style={{ width: 44 }} />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* AVATAR SECTION */}
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          
+          {/* --- SEÇÃO DE AVATAR --- */}
           <View style={styles.avatarSection}>
             <TouchableOpacity
               style={styles.avatarWrapper}
@@ -117,9 +132,7 @@ export default function ProfileScreen() {
                   <Ionicons name="person" size={60} color={theme.primary} />
                 )}
                 {uploading && (
-                  <View style={styles.uploadingOverlay}>
-                    <ActivityIndicator color="#FFF" />
-                  </View>
+                  <View style={styles.uploadingOverlay}><ActivityIndicator color="#FFF" /></View>
                 )}
               </View>
               <View style={styles.cameraBadge}>
@@ -129,11 +142,9 @@ export default function ProfileScreen() {
             <Text style={styles.userEmail}>{email}</Text>
           </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
-            {/* FORM */}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            
+            {/* --- FORMULÁRIO DE EDIÇÃO --- */}
             <View style={styles.formContainer}>
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nome de Exibição</Text>
@@ -150,18 +161,16 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
+              {/* Botão para Salvar Alterações */}
               <TouchableOpacity
                 style={[styles.saveButton, (loading || uploading) && styles.buttonDisabled]}
                 onPress={handleUpdateProfile}
                 disabled={loading || uploading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Salvar Alterações</Text>
-                )}
+                {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Salvar Alterações</Text>}
               </TouchableOpacity>
 
+              {/* Botão de Atalho para Categorias */}
               <TouchableOpacity
                 style={[styles.logoutButton, { borderColor: theme.border, marginTop: 8 }]}
                 onPress={() => router.push('/categories')}
@@ -171,6 +180,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.logoutButtonText, { color: theme.textMuted }]}>Gerenciar Categorias</Text>
               </TouchableOpacity>
 
+              {/* Botão de Logout */}
               <TouchableOpacity
                 style={styles.logoutButton}
                 onPress={handleLogout}
@@ -180,6 +190,7 @@ export default function ProfileScreen() {
                 <Text style={styles.logoutButtonText}>Sair da Conta</Text>
               </TouchableOpacity>
             </View>
+
           </KeyboardAvoidingView>
         </ScrollView>
       </View>

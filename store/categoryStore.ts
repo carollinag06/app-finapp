@@ -3,16 +3,24 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import * as Crypto from 'expo-crypto';
 import { safeStorage } from '../src/lib/storage';
 
+/**
+ * INTERFACE: Category
+ * Estrutura para categorizar receitas e despesas.
+ */
 export interface Category {
   id: string;
   name: string;
-  icon: string;
-  color: string;
+  icon: string;         // Nome do ícone do Ionicons
+  color: string;        // Cor hexadecimal da categoria
   type: 'income' | 'expense';
-  is_default: boolean;
+  is_default: boolean;  // Se true, não pode ser editada ou excluída
   user_id?: string;
 }
 
+/**
+ * CONSTANTE: Categorias Iniciais
+ * Lista de categorias que o app já traz configuradas por padrão.
+ */
 const DEFAULT_CATEGORIES: Category[] = [
   { id: '1', name: 'Alimentação', icon: 'fast-food-outline', color: '#FF453A', type: 'expense', is_default: true },
   { id: '2', name: 'Transporte', icon: 'car-outline', color: '#64D2FF', type: 'expense', is_default: true },
@@ -27,6 +35,10 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: '9', name: 'Presente', icon: 'gift-outline', color: '#FFD60A', type: 'income', is_default: true },
 ];
 
+/**
+ * INTERFACE: CategoryState
+ * Estado e ações para o gerenciamento de categorias.
+ */
 interface CategoryState {
   categories: Category[];
   addCategory: (newCategory: Omit<Category, 'id' | 'is_default'>) => Promise<void>;
@@ -35,13 +47,25 @@ interface CategoryState {
   reset: () => void;
 }
 
+/**
+ * STORE: useCategoryStore (Zustand)
+ * Gerencia a lista de categorias disponíveis no app.
+ */
 export const useCategoryStore = create<CategoryState>()(
   persist(
     (set, get) => ({
       categories: DEFAULT_CATEGORIES,
 
+      /**
+       * AÇÃO: reset
+       * Volta a lista para as categorias padrão do sistema.
+       */
       reset: () => set({ categories: DEFAULT_CATEGORIES }),
 
+      /**
+       * AÇÃO: addCategory
+       * Cria uma nova categoria personalizada do usuário.
+       */
       addCategory: async (newCategory) => {
         const category: Category = {
           ...newCategory,
@@ -53,6 +77,10 @@ export const useCategoryStore = create<CategoryState>()(
         }));
       },
 
+      /**
+       * AÇÃO: updateCategory
+       * Atualiza os dados, mas impede alterações em categorias padrão.
+       */
       updateCategory: async (id, updatedCategory) => {
         const category = get().categories.find(c => c.id === id);
         if (category?.is_default) return;
@@ -64,6 +92,10 @@ export const useCategoryStore = create<CategoryState>()(
         }));
       },
 
+      /**
+       * AÇÃO: deleteCategory
+       * Remove categorias personalizadas.
+       */
       deleteCategory: async (id) => {
         const category = get().categories.find(c => c.id === id);
         if (category?.is_default) return;

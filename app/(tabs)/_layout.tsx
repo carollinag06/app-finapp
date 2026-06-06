@@ -11,17 +11,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// --- TEMA ---
-const theme = {
-  bg: '#0F0F0F',
-  surface: '#1A1A1F',
-  primary: '#8A2BE2',
-  textMuted: '#A0A0A0',
-  border: '#2C2C2E',
-};
+import { theme } from '../../src/constants/theme';
 
-// --- COMPONENTE DO BOTÃO CENTRAL ---
-const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
+/**
+ * COMPONENTE DO BOTÃO CENTRAL (CustomTabBarButton)
+ * Este é o botão de "+" estilizado que fica no centro da barra de abas.
+ * Ele flutua um pouco acima da barra para destaque visual.
+ */
+const CustomTabBarButton = ({ onPress }: BottomTabBarButtonProps) => {
   return (
     <TouchableOpacity
       style={styles.customButtonWrapper}
@@ -35,23 +32,27 @@ const CustomTabBarButton = ({ children, onPress }: BottomTabBarButtonProps) => {
   );
 };
 
+/**
+ * TAB LAYOUT (Barra de Navegação Inferior)
+ * Define as abas principais do app que ficam visíveis após o login.
+ */
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets(); // Ajustes para o notch/área segura
   const { width: screenWidth } = useWindowDimensions();
 
-  // Aumentamos o padding inferior de forma equilibrada para Android e iOS
+  // Cálculos dinâmicos para garantir que a barra fique bem posicionada em qualquer celular
   const bottomPadding = insets.bottom > 0 ? insets.bottom + 4 : (Platform.OS === 'android' ? 12 : 12);
   const barHeight = 60 + bottomPadding;
 
-  const MAX_WIDTH = 600;
+  const MAX_WIDTH = 600; // Limite para visualização em tablets ou desktop
   const isDesktop = screenWidth > MAX_WIDTH;
 
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textMuted,
+        headerShown: false, // Oculta o cabeçalho padrão do React Navigation
+        tabBarActiveTintColor: theme.primary, // Cor do ícone quando selecionado
+        tabBarInactiveTintColor: theme.textMuted, // Cor do ícone quando não selecionado
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
@@ -62,12 +63,13 @@ export default function TabLayout() {
           borderBottomWidth: 0,
           borderLeftWidth: 0,
           borderRightWidth: 0,
-          elevation: 0, // Removido elevation para evitar linhas fantasmas no Android
+          elevation: 0, 
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.2,
           shadowRadius: 10,
-          // Ajustes para desktop
+          
+          // Lógica para centralizar a barra caso a tela seja muito larga (Desktop/Tablet)
           alignSelf: 'center',
           width: isDesktop ? MAX_WIDTH : '100%',
           position: isDesktop ? 'absolute' : 'relative',
@@ -79,75 +81,66 @@ export default function TabLayout() {
           borderColor: theme.border,
         },
         tabBarLabelStyle: {
-          fontSize: 11, // Um pouco menor para ficar mais elegante
+          fontSize: 11,
           fontWeight: '500',
           marginBottom: 4,
         },
-        // Correção definitiva para as linhas brancas sem erro de tipagem
+        // Força o fundo da barra a ter a cor do tema, evitando transparências indesejadas
         tabBarBackground: () => (
           <View style={{ flex: 1, backgroundColor: theme.surface }} />
         ),
       }}
     >
+      {/* ABA 1: Dashboard (Início) */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Início',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
 
+      {/* ABA 2: Extrato (Lista de Transações) */}
       <Tabs.Screen
         name="transacoes"
         options={{
           title: 'Extrato',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
       />
 
+      {/* ABA CENTRAL: Botão de adicionar nova transação */}
       <Tabs.Screen
         name="new-transaction-tab"
         options={{
           title: '',
-          tabBarButton: (props) => (
+          tabBarButton: (props: BottomTabBarButtonProps) => (
             <CustomTabBarButton {...props} onPress={() => router.push('/new-transaction')} />
           ),
         }}
       />
 
+      {/* ABA 3: Análises (Gráficos) */}
       <Tabs.Screen
         name="analytics"
         options={{
           title: 'Gráficos',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="pie-chart-outline" size={size} color={color} />
           ),
         }}
       />
 
-      <Tabs.Screen
-        name="metas"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="budget"
-        options={{
-          href: null,
-        }}
-      />
-
+      {/* ABA 4: Mais Opções (Menu de Configurações) */}
       <Tabs.Screen
         name="mais"
         options={{
           title: 'Mais',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="grid-outline" size={size} color={color} />
           ),
         }}
@@ -156,10 +149,10 @@ export default function TabLayout() {
   );
 }
 
-// --- ESTILOS ---
+// --- ESTILOS DO BOTÃO FLUTUANTE ---
 const styles = StyleSheet.create({
   customButtonWrapper: {
-    top: -18, // Reajustado para a nova altura da barra
+    top: -18, // Faz o botão "subir" para fora da barra
     justifyContent: 'center',
     alignItems: 'center',
     width: 64,

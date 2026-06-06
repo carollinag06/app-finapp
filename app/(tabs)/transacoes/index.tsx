@@ -15,13 +15,15 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Importação das stores para gerenciar transações e categorias
 import { useCategoryStore } from '../../../store/categoryStore';
 import { Transaction, useTransactionStore } from '../../../store/transactionStore';
 import { theme } from '../../../src/constants/theme';
 import { formatCurrency, formatDate, getMonthName } from '../../../src/utils/format';
 import { styles } from './styles';
 
-// --- CORES DO TEMA E CATEGORIAS ---
+// --- MAPEAMENTO DE ÍCONES ---
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Alimentação': 'restaurant',
   'Transporte': 'bus',
@@ -46,10 +48,15 @@ interface HeaderProps {
   hasActiveFilters: boolean;
 }
 
+/**
+ * Cabeçalho da Tela de Extrato
+ * Suporta dois estados: Título padrão ou Barra de Busca ativa.
+ */
 const Header = ({ onSearchToggle, isSearching, searchText, setSearchText, onFilterOpen, hasActiveFilters }: HeaderProps) => (
   <View style={styles.header}>
     {!isSearching ? (
       <>
+        {/* Estado 1: Título e ícones de Busca/Filtro */}
         <View>
           <Text style={styles.headerTitle}>Extrato</Text>
           <Text style={styles.headerSubtitle}>Histórico de lançamentos</Text>
@@ -73,6 +80,7 @@ const Header = ({ onSearchToggle, isSearching, searchText, setSearchText, onFilt
         </View>
       </>
     ) : (
+      /* Estado 2: Campo de entrada para busca textual */
       <View style={styles.searchContainer}>
         <TouchableOpacity
           onPress={onSearchToggle}
@@ -109,6 +117,9 @@ interface MonthSelectorProps {
   onNext: () => void;
 }
 
+/**
+ * Seletor de Mês e Ano para filtrar o extrato
+ */
 const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: MonthSelectorProps) => (
   <View style={styles.monthSelectorRow}>
     <TouchableOpacity
@@ -134,6 +145,10 @@ const MonthSelector = ({ currentMonth, currentYear, onPrev, onNext }: MonthSelec
   </View>
 );
 
+/**
+ * Card de Resumo Financeiro
+ * Exibe o total de Entradas, Saídas e o Balanço do período filtrado.
+ */
 const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
   const totalIncome = transactions
     .filter(t => t.type === 'income')
@@ -179,6 +194,10 @@ const SummaryCard = ({ transactions }: { transactions: Transaction[] }) => {
   );
 };
 
+/**
+ * Item Individual de Transação
+ * Ao clicar, abre a edição. Ao manter pressionado, abre a exclusão.
+ */
 const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (item: Transaction) => void }) => {
   const icon = categoryIcons[item.category] || 'pricetag';
   const isIncome = item.type === 'income';
@@ -224,15 +243,16 @@ const TransactionItem = ({ item, onDelete }: { item: Transaction, onDelete: (ite
   );
 };
 
-// --- TELA PRINCIPAL ---
+// --- TELA PRINCIPAL (EXTRATO) ---
 
 export default function TransactionsScreen() {
+  // Estados para navegação temporal e busca
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState('');
 
-  // Filtros
+  // Estados para o Modal de Filtros Avançados
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
@@ -240,13 +260,16 @@ export default function TransactionsScreen() {
 
   const insets = useSafeAreaInsets();
 
+  // Dados da Store global
   const transactions = useTransactionStore((state) => state.transactions);
   const deleteTransaction = useTransactionStore((state) => state.deleteTransaction);
   const deleteTransactionsByGroupId = useTransactionStore((state) => state.deleteTransactionsByGroupId);
   const categories = useCategoryStore((state) => state.categories);
 
+  // Verifica se há qualquer filtro ativo para destacar o ícone de funil
   const hasActiveFilters = filterType !== 'all' || filterCategory !== null || filterPaymentMethod !== 'all';
 
+  // LÓGICA: Aplica todos os filtros (Mês, Busca, Tipo, Categoria, Pagamento) nas transações
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t: Transaction) => {
       const transactionDate = t.date.includes('/')
@@ -257,7 +280,6 @@ export default function TransactionsScreen() {
       const isSearchMatch = t.description.toLowerCase().includes(searchText.toLowerCase()) ||
         t.category.toLowerCase().includes(searchText.toLowerCase());
 
-      // Filtros adicionais
       const isTypeMatch = filterType === 'all' || t.type === filterType;
       const isCategoryMatch = !filterCategory || t.category === filterCategory;
       const isPaymentMatch = filterPaymentMethod === 'all' || t.paymentMethod === filterPaymentMethod;
@@ -266,6 +288,10 @@ export default function TransactionsScreen() {
     });
   }, [transactions, currentMonth, currentYear, searchText, filterType, filterCategory, filterPaymentMethod]);
 
+  /**
+   * FUNÇÃO: Lógica de exclusão com suporte a parcelamentos
+   * Se for uma transação parcelada, pergunta se deve excluir apenas uma ou todas as parcelas do grupo.
+   */
   const handleDelete = (item: Transaction) => {
     if (item.recurrence === 'installment' && item.installmentGroupId) {
       Alert.alert(
@@ -273,15 +299,8 @@ export default function TransactionsScreen() {
         "Esta transação faz parte de um parcelamento. O que deseja excluir?",
         [
           { text: "Cancelar", style: "cancel" },
-          {
-            text: "Apenas esta",
-            onPress: () => deleteTransaction(item.id)
-          },
-          {
-            text: "Todas as parcelas",
-            style: "destructive",
-            onPress: () => deleteTransactionsByGroupId(item.installmentGroupId!)
-          }
+          { text: "Apenas esta", onPress: () => deleteTransaction(item.id) },
+          { text: "Todas as parcelas", style: "destructive", onPress: () => deleteTransactionsByGroupId(item.installmentGroupId!) }
         ]
       );
     } else {
@@ -302,14 +321,12 @@ export default function TransactionsScreen() {
     setFilterPaymentMethod('all');
   };
 
+  // LÓGICA: Agrupa transações filtradas por data para exibir no SectionList
   const sections = useMemo(() => {
     const groups: Record<string, Transaction[]> = {};
 
     filteredTransactions.forEach((t: Transaction) => {
-      // Usamos a data ISO para agrupar de forma consistente
-      const dateObj = t.date.includes('/')
-        ? parse(t.date, 'dd/MM/yyyy', new Date())
-        : parseISO(t.date);
+      const dateObj = t.date.includes('/') ? parse(t.date, 'dd/MM/yyyy', new Date()) : parseISO(t.date);
       const groupKey = format(dateObj, 'yyyy-MM-dd');
 
       if (!groups[groupKey]) groups[groupKey] = [];
@@ -317,37 +334,27 @@ export default function TransactionsScreen() {
     });
 
     return Object.keys(groups)
-      .sort((a, b) => b.localeCompare(a))
+      .sort((a, b) => b.localeCompare(a)) // Ordena do dia mais recente para o mais antigo
       .map(groupKey => {
-        return {
-          title: groupKey,
-          data: groups[groupKey]
-        };
+        return { title: groupKey, data: groups[groupKey] };
       });
   }, [filteredTransactions]);
 
   const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
+    else { setCurrentMonth(currentMonth - 1); }
   };
 
   const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
+    else { setCurrentMonth(currentMonth + 1); }
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.centeredWrapper}>
-        <Animated.View entering={FadeInUp.duration(720)}>
+        {/* Renderiza o Header (Busca ou Título) */}
+        <View>
           <Header
             isSearching={isSearching}
             onSearchToggle={() => {
@@ -359,53 +366,59 @@ export default function TransactionsScreen() {
             onFilterOpen={() => setIsFilterVisible(true)}
             hasActiveFilters={hasActiveFilters}
           />
-        </Animated.View>
+        </View>
 
+        {/* Seletor de Mês (oculto durante a busca) */}
         {!isSearching && (
-          <Animated.View entering={FadeInDown.delay(200).duration(720)}>
+          <View>
             <MonthSelector
               currentMonth={currentMonth}
               currentYear={currentYear}
               onPrev={handlePrevMonth}
               onNext={handleNextMonth}
             />
-          </Animated.View>
+          </View>
         )}
 
+        {/* SectionList: Lista otimizada para grandes volumes de dados com cabeçalhos de data */}
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
 
+          // Cabeçalho da Lista: Exibe o card de resumo financeiro
           ListHeaderComponent={<SummaryCard transactions={filteredTransactions} />}
 
+          // Cabeçalho de cada Seção (Datas: Hoje, Ontem, etc)
           renderSectionHeader={({ section: { title } }) => (
-            <Animated.View entering={FadeIn.delay(400).duration(720)}>
+            <View>
               <Text style={styles.sectionTitle}>
                 {isToday(parseISO(title)) ? 'Hoje' : 
                  isYesterday(parseISO(title)) ? 'Ontem' : 
                  formatDate(title, "dd 'de' MMMM")}
               </Text>
-            </Animated.View>
+            </View>
           )}
 
+          // Renderização de cada transação individual
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(600 + index * 50).duration(720)}>
+            <View>
               <TransactionItem item={item} onDelete={handleDelete} />
-            </Animated.View>
+            </View>
           )}
 
+          // Estado Vazio: Exibido quando nenhum resultado é encontrado nos filtros/busca
           ListEmptyComponent={
-            <Animated.View entering={FadeIn.delay(400).duration(270)} style={{ padding: 40, alignItems: 'center' }}>
+            <View style={{ padding: 40, alignItems: 'center' }}>
               <Ionicons name="search-outline" size={48} color={theme.border} style={{ marginBottom: 16 }} />
               <Text style={{ color: theme.textMuted }}>Nenhuma transação encontrada.</Text>
-            </Animated.View>
+            </View>
           }
         />
       </View>
 
-      {/* Modal de Filtros */}
+      {/* MODAL DE FILTROS AVANÇADOS */}
       <Modal
         visible={isFilterVisible}
         animationType="slide"
@@ -414,6 +427,7 @@ export default function TransactionsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            {/* Topo do Modal */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filtros</Text>
               <TouchableOpacity onPress={() => setIsFilterVisible(false)}>
@@ -422,100 +436,63 @@ export default function TransactionsScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Tipo de Transação */}
+              {/* Opções de Filtro: Tipo (Entrada/Saída) */}
               <Text style={styles.filterSectionTitle}>Tipo</Text>
               <View style={styles.filterOptionsRow}>
-                {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'income', label: 'Entradas' },
-                  { id: 'expense', label: 'Saídas' }
-                ].map((option) => (
+                {[{ id: 'all', label: 'Todos' }, { id: 'income', label: 'Entradas' }, { id: 'expense', label: 'Saídas' }].map((option) => (
                   <TouchableOpacity
                     key={option.id}
-                    style={[
-                      styles.filterChip,
-                      filterType === option.id && styles.filterChipActive
-                    ]}
+                    style={[styles.filterChip, filterType === option.id && styles.filterChipActive]}
                     onPress={() => setFilterType(option.id as 'all' | 'income' | 'expense')}
                   >
-                    <Text style={[
-                      styles.filterChipText,
-                      filterType === option.id && styles.filterChipTextActive
-                    ]}>{option.label}</Text>
+                    <Text style={[styles.filterChipText, filterType === option.id && styles.filterChipTextActive]}>{option.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Método de Pagamento */}
+              {/* Opções de Filtro: Método de Pagamento */}
               <Text style={styles.filterSectionTitle}>Pagamento</Text>
               <View style={styles.filterOptionsRow}>
-                {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'credit', label: 'Crédito' },
-                  { id: 'debit', label: 'Débito' }
-                ].map((option) => (
+                {[{ id: 'all', label: 'Todos' }, { id: 'credit', label: 'Crédito' }, { id: 'debit', label: 'Débito' }].map((option) => (
                   <TouchableOpacity
                     key={option.id}
-                    style={[
-                      styles.filterChip,
-                      filterPaymentMethod === option.id && styles.filterChipActive
-                    ]}
+                    style={[styles.filterChip, filterPaymentMethod === option.id && styles.filterChipActive]}
                     onPress={() => setFilterPaymentMethod(option.id as 'all' | 'credit' | 'debit')}
                   >
-                    <Text style={[
-                      styles.filterChipText,
-                      filterPaymentMethod === option.id && styles.filterChipTextActive
-                    ]}>{option.label}</Text>
+                    <Text style={[styles.filterChipText, filterPaymentMethod === option.id && styles.filterChipTextActive]}>{option.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Categorias */}
+              {/* Opções de Filtro: Categorias (Filtradas dinamicamente pelo tipo selecionado) */}
               <Text style={styles.filterSectionTitle}>Categorias</Text>
               <View style={styles.filterOptionsGrid}>
                 <TouchableOpacity
-                  style={[
-                    styles.filterChip,
-                    filterCategory === null && styles.filterChipActive
-                  ]}
+                  style={[styles.filterChip, filterCategory === null && styles.filterChipActive]}
                   onPress={() => setFilterCategory(null)}
                 >
-                  <Text style={[
-                    styles.filterChipText,
-                    filterCategory === null && styles.filterChipTextActive
-                  ]}>Todas</Text>
+                  <Text style={[styles.filterChipText, filterCategory === null && styles.filterChipTextActive]}>Todas</Text>
                 </TouchableOpacity>
                 {categories
                   .filter((c) => filterType === 'all' || c.type === filterType)
                   .map((cat) => (
                     <TouchableOpacity
                       key={cat.id}
-                      style={[
-                        styles.filterChip,
-                        filterCategory === cat.name && styles.filterChipActive
-                      ]}
+                      style={[styles.filterChip, filterCategory === cat.name && styles.filterChipActive]}
                       onPress={() => setFilterCategory(cat.name)}
                     >
-                      <Text style={[
-                        styles.filterChipText,
-                        filterCategory === cat.name && styles.filterChipTextActive
-                      ]}>{cat.name}</Text>
+                      <Text style={[styles.filterChipText, filterCategory === cat.name && styles.filterChipTextActive]}>{cat.name}</Text>
                     </TouchableOpacity>
                   ))}
               </View>
             </ScrollView>
 
+            {/* Rodapé do Modal: Ações de Limpar e Aplicar */}
             <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.resetButton}
-                onPress={resetFilters}
-              >
+              <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
                 <Text style={styles.resetButtonText}>Limpar Filtros</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.applyButton}
-                onPress={() => setIsFilterVisible(false)}
-              >
+              <TouchableOpacity style={styles.applyButton} onPress={() => setIsFilterVisible(false)}>
                 <Text style={styles.applyButtonText}>Aplicar</Text>
               </TouchableOpacity>
             </View>

@@ -10,24 +10,29 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Importação das stores e interfaces para gerenciar os cartões
 import { CreditCard, useCardStore } from '../../store/cardStore';
 import { useTransactionStore } from '../../store/transactionStore';
 import { theme } from '../../src/constants/theme';
 import { styles } from './styles';
 
-const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
+/**
+ * COMPONENTE: CardItem
+ * Renderiza a representação visual de um cartão de crédito.
+ */
+const CardItem = ({ card, onEdit, onDelete }: {
   card: CreditCard,
   onEdit: (id: string) => void,
-  onDelete: (id: string) => void,
-  closingAlert?: { days: number },
-  dueAlert?: { days: number }
+  onDelete: (id: string) => void
 }) => {
   return (
     <View style={styles.cardWrapper}>
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={() => onEdit(card.id)}
+        onPress={() => onEdit(card.id)} // Clique no cartão abre a edição
       >
+        {/* Gradiente baseado na cor escolhida para o cartão */}
         <LinearGradient
           colors={[card.color, `${card.color}99`]}
           start={{ x: 0, y: 0 }}
@@ -35,6 +40,7 @@ const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
           style={styles.cardGradient}
         >
           <View style={styles.cardContent}>
+            {/* Topo: Chip simulado e Bandeira */}
             <View style={styles.cardTop}>
               <View style={styles.cardChip}>
                 <View style={styles.chipLine} />
@@ -44,6 +50,7 @@ const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
               <Text style={styles.cardBrand}>{card.brand}</Text>
             </View>
 
+            {/* Meio: Nome e Limite */}
             <View style={styles.cardMiddle}>
               <Text style={styles.cardName}>{card.name.toUpperCase()}</Text>
               <Text style={styles.cardLimitLabel}>LIMITE TOTAL</Text>
@@ -52,16 +59,9 @@ const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
               </Text>
             </View>
 
+            {/* Rodapé: Botão de Excluir */}
             <View style={styles.cardBottom}>
               <View style={styles.cardDates}>
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateLabel}>FECHA</Text>
-                  <Text style={styles.dateValue}>{card.closing_day.toString().padStart(2, '0')}</Text>
-                </View>
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateLabel}>VENCE</Text>
-                  <Text style={styles.dateValue}>{card.due_day.toString().padStart(2, '0')}</Text>
-                </View>
               </View>
 
               <TouchableOpacity
@@ -74,41 +74,25 @@ const CardItem = ({ card, onEdit, onDelete, closingAlert, dueAlert }: {
           </View>
         </LinearGradient>
       </TouchableOpacity>
-
-      {/* Alertas */}
-      {(closingAlert || dueAlert) && (
-        <View style={styles.alertsContainer}>
-          {closingAlert && (
-            <View style={[styles.cardAlert, { backgroundColor: 'rgba(255, 215, 64, 0.1)', borderColor: 'rgba(255, 215, 64, 0.3)' }]}>
-              <MaterialCommunityIcons name="lock-open-outline" size={16} color={theme.warning} />
-              <Text style={styles.cardAlertText}>
-                Fatura fecha em {closingAlert.days === 0 ? 'HOJE' : closingAlert.days === 1 ? '1 dia' : `${closingAlert.days} dias`}
-              </Text>
-            </View>
-          )}
-          {dueAlert && (
-            <View style={[styles.cardAlert, { backgroundColor: 'rgba(255, 69, 58, 0.1)', borderColor: 'rgba(255, 69, 58, 0.3)' }]}>
-              <Ionicons name="warning-outline" size={16} color={theme.danger} />
-              <Text style={styles.cardAlertText}>
-                Fatura vence em {dueAlert.days === 0 ? 'HOJE' : dueAlert.days === 1 ? '1 dia' : `${dueAlert.days} dias`}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 };
 
+/**
+ * TELA: Meus Cartões (CardsScreen)
+ * Lista todos os cartões cadastrados e permite adicionar novos ou gerenciar os existentes.
+ */
 export default function CardsScreen() {
   const insets = useSafeAreaInsets();
-  const { cards, deleteCard, isInvoicePaid } = useCardStore();
+  const { cards, deleteCard } = useCardStore(); // Estado global dos cartões
   const transactions = useTransactionStore(state => state.transactions);
 
+  // Navega para a tela de cadastro em modo edição
   const handleEdit = (id: string) => {
     router.push({ pathname: '/new-card', params: { id } });
   };
 
+  // Lógica de confirmação antes de excluir o cartão
   const handleDelete = (id: string) => {
     Alert.alert("Excluir Cartão", "Deseja realmente excluir este cartão?", [
       { text: "Cancelar", style: "cancel" },
@@ -116,54 +100,9 @@ export default function CardsScreen() {
     ]);
   };
 
-  const cardAlerts = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    const alerts: Record<string, { closing?: { days: number }, due?: { days: number } }> = {};
-
-    cards.forEach(card => {
-      // Valor da fatura (transações de crédito do cartão no mês atual)
-      const invoiceValue = transactions
-        .filter(t => t.cardId === card.id && t.paymentMethod === 'credit')
-        .reduce((acc, t) => acc + t.value, 0);
-
-      if (invoiceValue === 0) return;
-
-      alerts[card.id] = {};
-
-      // 1. Alerta de Fechamento
-      const closingDate = new Date(currentYear, currentMonth, card.closing_day);
-      if (closingDate < today && today.getDate() > card.closing_day) {
-        closingDate.setMonth(closingDate.getMonth() + 1);
-      }
-      const diffDaysClosing = Math.ceil((closingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffDaysClosing === 0) {
-        alerts[card.id].closing = { days: diffDaysClosing };
-      }
-
-      // 2. Alerta de Vencimento
-      if (!isInvoicePaid(card.id, currentMonth, currentYear)) {
-        const dueDate = new Date(currentYear, currentMonth, card.due_day);
-        if (dueDate < today && today.getDate() > card.due_day) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        const diffDaysDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDaysDue >= 0 && diffDaysDue <= 3) {
-          alerts[card.id].due = { days: diffDaysDue };
-        }
-      }
-    });
-
-    return alerts;
-  }, [cards, transactions, isInvoicePaid]);
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
+      {/* HEADER DA TELA */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
@@ -177,11 +116,14 @@ export default function CardsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* LISTA DE CARTÕES (FlatList para melhor performance) */}
       <FlatList
         data={cards}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        
+        // Exibido quando a lista está vazia
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="card-outline" size={64} color={theme.textMuted} />
@@ -194,13 +136,12 @@ export default function CardsScreen() {
             </TouchableOpacity>
           </View>
         }
+        
         renderItem={({ item }) => (
           <CardItem
             card={item}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            closingAlert={cardAlerts[item.id]?.closing}
-            dueAlert={cardAlerts[item.id]?.due}
           />
         )}
       />

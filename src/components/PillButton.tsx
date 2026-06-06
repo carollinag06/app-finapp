@@ -8,6 +8,10 @@ interface PillButtonProps {
   onPress: () => void;
 }
 
+/**
+ * COMPONENTE: PillButton (Botão Estilo Pílula)
+ * Utilizado para seletores horizontais de opções únicas (ex: Tipo de transação, Meio de pagamento).
+ */
 export const PillButton = memo(({ label, isActive, onPress }: PillButtonProps) => (
   <TouchableOpacity
     style={[styles.pill, isActive && styles.pillActive]}
