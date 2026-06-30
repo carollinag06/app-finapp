@@ -1,10 +1,9 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { format, isToday, isYesterday, parse, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   ScrollView,
   Text,
@@ -17,24 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '../../../store/authStore';
 import { BudgetGoal, useBudgetStore } from '../../../store/budgetStore';
-import { CreditCard, useCardStore } from '../../../store/cardStore';
 import { Transaction, useTransactionStore } from '../../../store/transactionStore';
 import { theme, MAX_WIDTH } from '../../../src/constants/theme';
 import { formatCurrency, getMonthName } from '../../../src/utils/format';
 import { styles } from './styles';
 
-// --- TIPAGEM ---
-
-interface InvoiceAlert {
-  cardId: string;
-  cardName: string;
-  value: number;
-  daysRemaining: number;
-  month: number;
-  year: number;
-  type: 'closing' | 'due';
-}
-
+// Mapeamento de categorias para ícones do Ionicons.
 const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Alimentação': 'restaurant',
   'Transporte': 'bus',
@@ -49,6 +36,7 @@ const categoryIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 // --- COMPONENTES ---
 
+// Componente de cabeçalho do dashboard, mostrando saudação, avatar e controle de meses.
 const Header = ({ currentMonth, currentYear, onPrev, onNext, user }: {
   currentMonth: number,
   currentYear: number,
@@ -113,6 +101,7 @@ interface CardSaldoProps {
   totalOrcado: number;
 }
 
+// Cartão de resumo financeiro que mostra saldo, receitas, despesas e progresso de orçamento.
 const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valorPendente, totalOrcado }: CardSaldoProps) => {
   const percent = totalOrcado > 0 ? Math.min((despesas / totalOrcado) * 100, 100) : 0;
 
@@ -153,12 +142,12 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
           style={styles.statItem}
           onPress={() => router.push({ pathname: '/analytics', params: { tab: 'receitas' } })}
         >
-          <View style={[styles.statIconCircle, { backgroundColor: theme.successOpacity }]}>
+          <View style={[styles.statIconCircle, { backgroundColor: theme.successOpacity }]}> 
             <Ionicons name="trending-up" size={14} color={theme.success} />
           </View>
           <View>
             <Text style={styles.statLabel}>Entradas</Text>
-            <Text style={[styles.statValue, { color: theme.success }]}>
+            <Text style={[styles.statValue, { color: theme.success }]}> 
               {mostrarSaldo ? formatCurrency(receitas) : 'R$ •••'}
             </Text>
           </View>
@@ -170,12 +159,12 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
           style={styles.statItem}
           onPress={() => router.push({ pathname: '/analytics', params: { tab: 'despesas' } })}
         >
-          <View style={[styles.statIconCircle, { backgroundColor: theme.dangerOpacity }]}>
+          <View style={[styles.statIconCircle, { backgroundColor: theme.dangerOpacity }]}> 
             <Ionicons name="trending-down" size={14} color={theme.danger} />
           </View>
           <View>
             <Text style={styles.statLabel}>Saídas</Text>
-            <Text style={[styles.statValue, { color: theme.danger }]}>
+            <Text style={[styles.statValue, { color: theme.danger }]}> 
               {mostrarSaldo ? formatCurrency(despesas) : 'R$ •••'}
             </Text>
           </View>
@@ -185,6 +174,7 @@ const CardSaldo = ({ mostrarSaldo, toggleSaldo, saldo, receitas, despesas, valor
   );
 };
 
+// Grupo de atalhos rápidos na tela, mostrando ações de navegação direto do dashboard.
 const AtalhosRapidos = () => {
   const { width: screenWidth } = useWindowDimensions();
   const contentWidth = Math.min(screenWidth, MAX_WIDTH);
@@ -193,28 +183,28 @@ const AtalhosRapidos = () => {
   return (
     <View style={styles.shortcutsContainer}>
       <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/new-transaction')}>
-        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}> 
           <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
         </View>
         <Text style={styles.shortcutText}>Lançar</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/metas')}>
-        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(0, 230, 118, 0.15)' }]}> 
           <Ionicons name="pie-chart-outline" size={24} color={theme.success} />
         </View>
         <Text style={styles.shortcutText}>Orçamento</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/metas')}>
-        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}> 
           <Ionicons name="flag-outline" size={24} color="#2196F3" />
         </View>
         <Text style={styles.shortcutText}>Metas</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.shortcutItem, { width: shortcutWidth }]} onPress={() => router.push('/mais')}>
-        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(255, 215, 64, 0.15)' }]}>
+        <View style={[styles.shortcutIcon, { backgroundColor: 'rgba(255, 215, 64, 0.15)' }]}> 
           <Ionicons name="options-outline" size={24} color={theme.warning} />
         </View>
         <Text style={styles.shortcutText}>Mais</Text>
@@ -223,18 +213,18 @@ const AtalhosRapidos = () => {
   );
 };
 
+// Componente que renderiza uma lista com as transações mais recentes do mês.
 const TransacoesRecentes = ({ transactions }: { transactions: Transaction[] }) => (
   <View style={styles.section}>
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>Transações Recentes</Text>
+      <Text style={styles.sectionTitle}>Últimas Transações</Text>
       <TouchableOpacity onPress={() => router.push('/transacoes')}>
-        <Text style={styles.seeAllText}>Ver tudo</Text>
+        <Text style={styles.seeAllText}>Ver todas</Text>
       </TouchableOpacity>
     </View>
-
     <View style={styles.transactionsList}>
       {transactions.length > 0 ? (
-        transactions.slice(0, 4).map((t, index) => {
+        transactions.slice(0, 4).map((t) => {
           const icon = categoryIcons[t.category] || 'pricetag';
           const isIncome = t.type === 'income';
 
@@ -289,6 +279,7 @@ const TransacoesRecentes = ({ transactions }: { transactions: Transaction[] }) =
   </View>
 );
 
+// Cartão de resumo rápido da semana. Pode ser atualizado com métricas reais no futuro.
 const HealthCard = () => (
   <TouchableOpacity style={styles.healthCard} activeOpacity={0.9}>
     <View style={styles.healthInfo}>
@@ -301,87 +292,6 @@ const HealthCard = () => (
   </TouchableOpacity>
 );
 
-const InvoiceAlerts = ({ alerts, onMarkAsPaid }: { alerts: InvoiceAlert[], onMarkAsPaid: (cardId: string) => void }) => {
-  if (alerts.length === 0) return null;
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Alertas de Cartão</Text>
-      </View>
-      {alerts.map((alert, idx) => {
-        const isClosing = alert.type === 'closing';
-        // Fechamento: Azul/Ciano, Vencimento: Laranja/Vermelho
-        let alertColor = isClosing ? '#00B0FF' : theme.warning;
-        if (!isClosing) {
-          if (alert.daysRemaining <= 1) alertColor = theme.danger;
-          else if (alert.daysRemaining <= 3) alertColor = '#FF9800';
-        }
-
-        if (isClosing) {
-          return (
-            <TouchableOpacity
-              key={`${alert.cardId}-${alert.type}-${idx}`}
-              style={[styles.alertCardMini, { borderColor: `${alertColor}30`, backgroundColor: `${alertColor}05` }]}
-              onPress={() => router.push('/cards')}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.alertIconCircleSmall, { backgroundColor: `${alertColor}20` }]}>
-                <Ionicons name="lock-open-outline" size={14} color={alertColor} />
-              </View>
-              <Text style={styles.alertTitleMini}>Fatura {alert.cardName} fecha <Text style={{ color: alertColor, fontWeight: 'bold' }}>hoje</Text></Text>
-              <Ionicons name="chevron-forward" size={14} color={theme.textMuted} />
-            </TouchableOpacity>
-          );
-        }
-
-        return (
-          <View key={`${alert.cardId}-${alert.type}-${idx}`} style={[styles.alertCard, { borderColor: `${alertColor}50`, backgroundColor: `${alertColor}08` }]}>
-            <View style={styles.alertHeader}>
-              <View style={[styles.alertIconCircle, { backgroundColor: `${alertColor}20` }]}>
-                <Ionicons name="alert-circle" size={18} color={alertColor} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.alertTitle, { color: theme.text }]}>Vencimento Próximo</Text>
-                <Text style={styles.alertCardName}>{alert.cardName}</Text>
-              </View>
-              <View style={[styles.alertTimeTag, { backgroundColor: `${alertColor}15` }]}>
-                <Text style={[styles.alertTimeText, { color: alertColor }]}>
-                  {alert.daysRemaining === 0 ? 'Vence HOJE' : `Em ${alert.daysRemaining} ${alert.daysRemaining === 1 ? 'dia' : 'dias'}`}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.alertValueRow}>
-              <Text style={styles.alertValueLabel}>Valor da Fatura:</Text>
-              <Text style={[styles.alertValueMain, { color: alertColor }]}>
-                {formatCurrency(alert.value)}
-              </Text>
-            </View>
-
-            <View style={styles.alertFooterCompact}>
-              <TouchableOpacity
-                style={styles.alertActionLink}
-                onPress={() => router.push('/cards')}
-              >
-                <Text style={styles.alertActionLinkText}>Ver detalhes</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.alertPayButtonAction, { backgroundColor: alertColor }]}
-                onPress={() => onMarkAsPaid(alert.cardId)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="checkmark-circle-outline" size={16} color="#000" style={{ marginRight: 6 }} />
-                <Text style={styles.alertActionBtnText}>Marcar como Paga</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
-};
-
 // --- TELA PRINCIPAL ---
 
 export default function Dashboard() {
@@ -393,80 +303,6 @@ export default function Dashboard() {
 
   const transactions = useTransactionStore((state) => state.transactions);
   const budgets = useBudgetStore((state) => state.budgets);
-  const { cards, markInvoiceAsPaid, isInvoicePaid, paidInvoices } = useCardStore();
-
-  // Alertas de Fatura
-  const invoiceAlerts = useMemo(() => {
-    const now = new Date();
-    // Zera ABSOLUTAMENTE horas, minutos, segundos e ms para comparação pura de dias
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-
-    const realMonth = today.getMonth();
-    const realYear = today.getFullYear();
-
-    const alerts: InvoiceAlert[] = [];
-
-    cards.forEach((card: CreditCard) => {
-      // 1. Soma o valor de CRÉDITO deste cartão (independente do mês selecionado)
-      const invoiceValue = transactions
-        .filter((t: Transaction) =>
-          String(t.cardId) === String(card.id) &&
-          t.paymentMethod === 'credit'
-        )
-        .reduce((acc: number, t: Transaction) => acc + t.value, 0);
-
-      // Se não tem gasto, não tem alerta
-      if (invoiceValue <= 0) return;
-
-      // --- LÓGICA DE FECHAMENTO ---
-      let closingDate = new Date(realYear, realMonth, Number(card.closing_day), 0, 0, 0, 0);
-      if (today > closingDate) closingDate.setMonth(closingDate.getMonth() + 1);
-
-      const diffClosing = Math.ceil((closingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffClosing >= 0 && diffClosing <= 1) {
-        alerts.push({
-          cardId: card.id, cardName: card.name, value: invoiceValue,
-          daysRemaining: diffClosing, month: closingDate.getMonth(), year: closingDate.getFullYear(),
-          type: 'closing'
-        });
-      }
-
-      // --- LÓGICA DE VENCIMENTO (FOCO EM "HOJE") ---
-      const paga = isInvoicePaid(card.id, realMonth, realYear);
-
-      if (!paga) {
-        // Criamos a data de vencimento também zerada
-        const dueDate = new Date(realYear, realMonth, Number(card.due_day), 0, 0, 0, 0);
-
-        // Cálculo preciso de dias
-        const diffTime = dueDate.getTime() - today.getTime();
-        const diffDue = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-        // CONDIÇÃO: Se faltar 7 dias, se for HOJE (0) ou se estiver atrasada (negativo)
-        if (diffDue <= 7) {
-          alerts.push({
-            cardId: card.id,
-            cardName: card.name,
-            value: invoiceValue,
-            daysRemaining: diffDue,
-            month: realMonth,
-            year: realYear,
-            type: 'due'
-          });
-        }
-      }
-    });
-
-    // Ordenação: Atrasadas e "Hoje" primeiro
-    return alerts.sort((a, b) => a.daysRemaining - b.daysRemaining);
-  }, [cards, transactions, isInvoicePaid, paidInvoices]);
-
-  const handleMarkAsPaid = (cardId: string) => {
-    const today = new Date();
-    markInvoiceAsPaid(cardId, today.getMonth(), today.getFullYear());
-    Alert.alert("Sucesso", "Fatura marcada como paga com sucesso!");
-  };
 
   // Filtro por mês
   const monthlyTransactions = useMemo(() => {
@@ -553,10 +389,6 @@ export default function Dashboard() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(800).duration(720)}>
-            <InvoiceAlerts alerts={invoiceAlerts} onMarkAsPaid={handleMarkAsPaid} />
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(1000).duration(720)}>
             <TransacoesRecentes transactions={monthlyTransactions} />
           </Animated.View>
 

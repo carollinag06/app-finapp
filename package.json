@@ -18,12 +18,9 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.0.14",
     "date-fns": "^4.1.0",
-<<<<<<< HEAD
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
-=======
     "expo": "^52.0.0",
->>>>>>> 14802390a1a29baf316ffb435ca22710137c5412
     "expo-constants": "~17.0.0",
     "expo-crypto": "~14.0.0",
     "expo-font": "~13.0.0",
